@@ -23,7 +23,8 @@ def print_as_device(
     device_uuid: str,
     data: object,
 ) -> None:
-    print_with_time(f"{device_uuid}[{device_name}]: ",
+    print_with_time(
+        f"{device_uuid}[{device_name}]: ",
         end=""
     )
     if hasattr(data, "__str__"):
