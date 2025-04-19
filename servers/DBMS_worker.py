@@ -33,7 +33,7 @@ class DBMS_worker:
         self.cursor.execute(f"USE {db_name}")
 
         self.cursor.execute("""
-            CREATE TABLE devices (
+            CREATE TABLE IF NOT EXISTS devices (
                 device_id INTEGER NOT NULL AUTO_INCREMENT,
                 device_uuid CHAR(36) UNIQUE,
                 device_name VARCHAR(255),
@@ -43,7 +43,7 @@ class DBMS_worker:
         """)
 
         self.cursor.execute("""
-            CREATE TABLE actual_data (
+            CREATE TABLE IF NOT EXISTS actual_data (
                 data_id INTEGER NOT NULL AUTO_INCREMENT,
                 data_device_id INTEGER,
                 data_sector INTEGER,
@@ -58,7 +58,7 @@ class DBMS_worker:
         """)
 
         self.cursor.execute("""
-            CREATE TABLE data_history (
+            CREATE TABLE IF NOT EXISTS data_history (
                 data_id INTEGER NOT NULL AUTO_INCREMENT,
                 data_device_id INTEGER,
                 data_sector INTEGER,
@@ -73,7 +73,7 @@ class DBMS_worker:
         """)
 
         self.cursor.execute("""
-            CREATE TABLE rules (
+            CREATE TABLE IF NOT EXISTS rules (
                 rule_id INTEGER NOT NULL AUTO_INCREMENT,
                 rule_data_id INTEGER,
                 rule_condition INTEGER,
@@ -91,7 +91,7 @@ class DBMS_worker:
         """)
 
         self.cursor.execute("""
-            CREATE TABLE tasks (
+            CREATE TABLE IF NOT EXISTS tasks (
                 task_id INTEGER NOT NULL AUTO_INCREMENT,
                 task_device_id INTEGER,
                 task_message VARCHAR(255),
@@ -104,7 +104,7 @@ class DBMS_worker:
         """)
         
         self.cursor.execute("""
-            CREATE TRIGGER after_actual_data_insert
+            CREATE TRIGGER IF NOT EXISTS after_actual_data_insert
             AFTER INSERT ON actual_data
             FOR EACH ROW
             INSERT INTO data_history (
@@ -124,7 +124,7 @@ class DBMS_worker:
         """)
 
         self.cursor.execute("""
-            CREATE TRIGGER after_actual_data_update
+            CREATE TRIGGER IF NOT EXISTS after_actual_data_update
             AFTER UPDATE ON actual_data
             FOR EACH ROW
             BEGIN
