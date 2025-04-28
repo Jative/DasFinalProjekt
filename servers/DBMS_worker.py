@@ -23,7 +23,7 @@ class DBMS_worker:
                 password=password,
                 autocommit=True
             )
-            self.cursor = self.cnx.cursor()
+            self.cursor = self.cnx.cursor(buffered=True)
             self.connect_to_db(db_name)
             self.created = True
         except Exception as e:
@@ -316,7 +316,7 @@ class DBMS_worker:
         if device_id:
             self.cursor.execute("""
                 SELECT *
-                FROM actual data
+                FROM actual_data
                 WHERE data_device_id = %s
                 """,
                 (device_id,)
@@ -340,12 +340,13 @@ class DBMS_worker:
         """
         self.cursor.execute("""
             SELECT *
-            FROM actual data
+            FROM actual_data
             WHERE data_id = %s
             """,
             (data_id,)
         )
-        return self.cursor.fetchone()
+        result = self.cursor.fetchone()
+        return result if result else None
 
 
     def update_actual_data_line(
@@ -535,11 +536,11 @@ class DBMS_worker:
                 """,
                 (device_id,)
             )
-            task = cursor.fetchone()
-            if task:
+            try:
+                task = cursor.fetchone()
                 self.remove_task(task[0])
                 return task[2]
-            else:
+            except:
                 return None
         else:
             return None

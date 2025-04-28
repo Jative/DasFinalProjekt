@@ -135,15 +135,16 @@ class Server:
             data (list): Полученные значения данных
         """
         data_lines = self.db_worker.get_actual_data_lines_by_uuid(device_uuid)
-        if len(data_lines) < len(data-1):
-            Server.print_as_device(
-                device_name,
-                device_uuid,
-                "В БД не заданы данные для устройства"
-            )
-            return
-        for i in range(len(data_lines)):
-            self.db_worker.update_actual_data_line(data_lines[i][0], data[i+1])
+        if data_lines:
+            if len(data_lines) < len(data-1):
+                Server.print_as_device(
+                    device_name,
+                    device_uuid,
+                    "В БД не заданы данные для устройства"
+                )
+                return
+            for i in range(len(data_lines)):
+                self.db_worker.update_actual_data_line(data_lines[i][0], data[i+1])
     
     def process_rules(
         self,
@@ -155,31 +156,32 @@ class Server:
         Args:
             rules (list[tuple] | None): Список правил из БД
         """
-        for rule in rules:
-            _, data_id, rule_condition, rule_value, _, message = rule
-            data_value = self.db_worker.get_actual_data_line(data_id)[4]
-            device_id = data[1]
-            if task_exists(device_id):
-                break
-            match rule_condition:
-                case 1:
-                    if data_value > rule_value:
-                        self.db_worker.add_task(device_id, message)
+        if rules:
+            for rule in rules:
+                _, data_id, rule_condition, rule_value, _, message = rule
+                data_value = self.db_worker.get_actual_data_line(data_id)[4]
+                device_id = data[1]
+                if task_exists(device_id):
                     break
-                case 2:
-                    if data_value < rule_value:
-                        self.db_worker.add_task(device_id, message)
-                    break
-                case 3:
-                    if data_value == rule_value:
-                        self.db_worker.add_task(device_id, message)
-                    break
-                case 4:
-                    if data_value != rule_value:
-                        self.db_worker.add_task(device_id, message)
-                    break
-                case _:
-                    break
+                match rule_condition:
+                    case 1:
+                        if data_value > rule_value:
+                            self.db_worker.add_task(device_id, message)
+                        break
+                    case 2:
+                        if data_value < rule_value:
+                            self.db_worker.add_task(device_id, message)
+                        break
+                    case 3:
+                        if data_value == rule_value:
+                            self.db_worker.add_task(device_id, message)
+                        break
+                    case 4:
+                        if data_value != rule_value:
+                            self.db_worker.add_task(device_id, message)
+                        break
+                    case _:
+                        break
 
     def process_tasks(self, device_uuid: str) -> list[str]:
         """
