@@ -23,7 +23,7 @@ def decrypt(byte_data: bytes) -> str:
         cipher = AES.new(ENCRYPTION_KEY, AES.MODE_EAX, nonce=nonce)
         byte_message = cipher.decrypt_and_verify(cipher_message, tag)
         return byte_message.decode('utf-8')
-    except (InvalidTag, ValueError):
-        raise ValueError("Ошибка дешифрования. Невалидный тег/данные")
+    except ValueError:
+        raise ValueError("Ошибка дешифрования. Невалидные данные")
     except UnicodeDecodeError:
         raise ValueError("Ошибка дешифрования. Сообщение использует не UTF-8")

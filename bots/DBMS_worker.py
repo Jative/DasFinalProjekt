@@ -46,7 +46,7 @@ class DBMS_worker:
         """)
 
 
-    def insert_test_values(self):
+    def insert_test_values(self) -> None:
         params = ("temperature", "humidity", "brightness")
         allowed_values = ((22, 28), (60, 90), (0, 100))
         for i in range(2):
@@ -68,10 +68,12 @@ class DBMS_worker:
     ) -> int:
         try:
             self.cursor.execute("""
-                SELECT indicator_value
-                FROM indicators
-                WHERE indicator_sector = %s AND indicator_name = %s
-            """, (sector, name))
+                    SELECT indicator_value
+                    FROM indicators
+                    WHERE indicator_sector = %s AND indicator_name = %s
+                """,
+                (sector, name)
+            )
             cursor_result = self.cursor.fetchone()
             if cursor_result:
                 return cursor_result[0]
@@ -79,3 +81,23 @@ class DBMS_worker:
                 raise
         except:
             return 0
+    
+
+    def change_value(
+        self,
+        sector: int,
+        name: str,
+        value: int,
+    ) -> bool:
+        try:
+            self.cursor.execute(
+                """
+                UPDATE indicators
+                SET indicator_value = indicator_value + %s
+                WHERE indicator_sector = %s AND indicator_name = %s
+                """,
+                (value, sector, name)
+            )
+            return True
+        except:
+            return False

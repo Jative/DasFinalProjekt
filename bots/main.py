@@ -19,6 +19,11 @@ def main() -> None:
         IoT_devices.BrightnessSensor1(db_worker),
         IoT_devices.BrightnessSensor2(db_worker),
         IoT_devices.Heater1(db_worker),
+        IoT_devices.Heater2(db_worker),
+        IoT_devices.Humiditator1(db_worker),
+        IoT_devices.Humiditator2(db_worker),
+        IoT_devices.Lamp1(db_worker),
+        IoT_devices.Lamp2(db_worker),
     ]
     
     for device in device_list:
