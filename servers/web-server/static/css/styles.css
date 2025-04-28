@@ -16,7 +16,6 @@
     --gray-90: #d9d9d9;
     --gray-95: #f0f0f0;
     
-    /* Komponentenfarben */
     --sidebar-width: 250px;
     --hover-transition: all 0.3s ease;
 }
@@ -89,7 +88,8 @@ body {
 
 .main-content {
     flex: 1;
-    margin-left: var(--sidebar-width);
+    /* margin-left: var(--sidebar-width); */
+    margin-left: 150px;
     padding: 30px;
     background: var(--gray-95);
 }
