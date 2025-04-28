@@ -19,12 +19,20 @@
 - /bots/IoT_devices.py - перечень и конфигурация различных IoT-устройств
 - /bots/logic.py - вспомогательные функции, у нас работа с UUID
 - /bots/main.py - точка входа. Создаёт устройства и запускает каждое в отдельном потоке
-
+---
 - /servers/config.py - хранит конфигурацию для работы сервера, а также шифрования
 - /servers/DBMS_worker.py - класс для взаимодействия с БД
 - /servers/encryption.py - функции шифрования/дешифрования
 - /servers/loc_sock_serv.py - реализация и точка входа для локального веб-сокет-сервера
-
+---
+- /servers/web-server/css/styles.css - хранит стили HTML-документов веб-сервера
+- /servers/web-server/templates/base.html - хранит шаблон HTML. Содержит стили, меню и лого
+- /servers/web-server/templates/login.html - содержит страницу входа
+- /servers/web-server/templates/index.html - содержит главную страницу с актуальной информацией
+- /servers/web-server/templates/config.html - содержит страницу конфигурации теплицы
+- /servers/web-server/templates/about.html - содержит страницу "О нас"
+- /servers/web-server/app.py - содержит реализацию веб-сервера на основе Flask
+---
 - /db_schema.png - ERD-схема всех баз данных
 - /requirements.txt - библиотеки, фреймворки и пр. с используемыми версиями
 - /readme.md - справочная информация, призванная упростить понимание принципов работы проекта
