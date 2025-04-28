@@ -191,7 +191,7 @@ class Server:
         Returns:
             list[str]: Запись задачи из таблицы или значение по умолчанию
         """
-        task_message = self.db_worker.get_task_message(device_uuid)
+        task_message = self.db_worker.pop_task_message(device_uuid)
         return task_message if task_message else [f"{SEND_STATE_DELAY}~0"]
 
     def handle_connection(self, conn: socket.socket, addr: tuple) -> None:

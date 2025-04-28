@@ -512,12 +512,12 @@ class DBMS_worker:
             return False
     
 
-    def get_task_message(
+    def pop_task_message(
         self,
         task_device_uuid: str
     ) -> str | None:
         """
-        Получает и удаляет первую задачу для устройства.
+        Получает и удаляет задачу для устройства.
         
         Args:
             task_device_uuid (str): UUID устройства
