@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <link rel="stylesheet" href="{{ url_for('static', filename='./css/styles.css') }}">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+</head>
+<body>
+    <div class="login-wrapper">
+        <div class="login-box">
+            <h2 class="login-title">ВХОД</h2>
+            
+            {% with messages = get_flashed_messages() %}
+                {% if messages %}
+                    {% for message in messages %}
+                        <div class="alert">{{ message }}</div>
+                    {% endfor %}
+                {% endif %}
+            {% endwith %}
+    
+            <form class="login-form" method="POST">
+                <div class="form-group">
+                    <input type="email" 
+                           class="form-input" 
+                           placeholder="E-Mail"
+                           required>
+                </div>
+                
+                <div class="form-group">
+                    <input type="password" 
+                           class="form-input" 
+                           placeholder="Пароль"
+                           required>
+                </div>
+                <button type="submit" class="login-button">Войти</button>
+            </form>
+        </div>
+    </div>
+</body>
+</html>

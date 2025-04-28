@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="main-content">
+    <div class="dashboard-header">
+        <h1 class="page-title">IoT-Gerätestatus</h1>
+        <div class="last-update">
+            Letzte Aktualisierung: {{ last_update }}
+        </div>
+    </div>
+
+    <div class="iot-data-grid">
+        {% for param, data in iot_data.items() %}
+        <div class="data-card">
+            <div class="data-icon">
+                <i class="fas {{ data.icon }}"></i>
+            </div>
+            <div class="data-content">
+                <h3 class="param-name">{{ data.display_name }}</h3>
+                <div class="param-value">
+                    {{ data.value|round(1) }}{{ data.unit }}
+                </div>
+                <div class="param-meta">
+                    <span class="param-time">{{ data.timestamp }}</span>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    {% if not iot_data %}
+    <div class="no-data">
+        <i class="fas fa-database"></i>
+        <p>Keine Daten verfügbar</p>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
