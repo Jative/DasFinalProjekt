@@ -21,10 +21,10 @@
 - /bots/logic.py - вспомогательные функции, у нас работа с UUID
 - /bots/main.py - точка входа. Создаёт устройства и запускает каждое в отдельном потоке
 ### Веб-сокет-сервер
-- /servers/IoTServer/config.py - хранит конфигурацию для работы сервера, а также шифрования
-- /servers/IoTServer/DBMS_worker.py - класс для взаимодействия с БД
-- /servers/IoTServer/encryption.py - функции шифрования/дешифрования
-- /servers/IoTServer/main.py - реализация и точка входа для локального веб-сокет-сервера
+- /servers/IoT-server/config.py - хранит конфигурацию для работы сервера, а также шифрования
+- /servers/IoT-server/DBMS_worker.py - класс для взаимодействия с БД
+- /servers/IoT-server/encryption.py - функции шифрования/дешифрования
+- /servers/IoT-server/main.py - реализация и точка входа для локального веб-сокет-сервера
 ### Веб-сервер
 - /servers/web-server/css/styles.css - хранит стили HTML-документов веб-сервера
 - /servers/web-server/templates/base.html - хранит шаблон HTML. Содержит стили, меню и лого
