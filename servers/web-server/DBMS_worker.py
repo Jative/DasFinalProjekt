@@ -195,22 +195,6 @@ class DBMS_worker:
         else:
             return None
 
-    def update_device_communication_timestamp(self, device_uuid: str) -> None:
-        """
-        Обновляет временную метку последней коммуникации устройства до текущего времени.
-        
-        Args:
-            device_uuid (str): Уникальный идентификатор устройства
-        """
-        self.cursor.execute(
-            """
-            UPDATE devices
-            SET device_last_communication = CURRENT_TIMESTAMP
-            WHERE device_uuid = %s
-            """,
-            (device_uuid,)
-        )
-
     def add_device(self, uuid: str, name: str, sector_id: int = None) -> bool:
         """
         Добавляет новое устройство в базу данных с возможностью привязки к сектору.
@@ -573,3 +557,11 @@ class DBMS_worker:
             return self.cursor.rowcount > 0
         except Exception as e:
             return False
+
+    def get_sector_devices(self, sector_id: int) -> list[int]:
+        """Получаем список ID устройств в секторе"""
+        self.cursor.execute(
+            "SELECT device_id FROM devices WHERE sector_id = %s",
+            (sector_id,)
+        )
+        return [row[0] for row in self.cursor.fetchall()]

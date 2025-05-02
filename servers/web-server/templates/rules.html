@@ -1,0 +1,147 @@
+{% extends "base.html" %}
+
+{% block title %}Управление правилами{% endblock %}
+
+{% block content %}
+<div class="rules-management">
+    <h1>Управление правилами</h1>
+    
+    <!-- Форма создания правила -->
+    <div class="rule-form card">
+        <h2>Новое правило</h2>
+        <form method="POST" class="form-grid">
+            <div class="form-section">
+                <h3 class="section-title">Условие срабатывания</h3>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">Отслеживаемый параметр</label>
+                        <select name="data_id" class="form-select" required>
+                            {% for data in available_data %}
+                            <option value="{{ data.data_id }}">
+                                {{ data.data_name }} ({{ data.sector_name }})
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+    
+                    <div class="form-group">
+                        <label class="form-label">Тип условия</label>
+                        <select name="condition" class="form-select" required>
+                            <option value="1">Больше чем</option>
+                            <option value="2">Меньше чем</option>
+                            <option value="3">Равно</option>
+                            <option value="4">Не равно</option>
+                        </select>
+                    </div>
+    
+                    <div class="form-group">
+                        <label class="form-label">Пороговое значение</label>
+                        <input type="number" name="value" 
+                               class="form-input" 
+                               placeholder="Введите число"
+                               required>
+                    </div>
+                </div>
+            </div>
+    
+            <div class="form-section">
+                <h3 class="section-title">Действие при срабатывании</h3>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">Устройство-исполнитель</label>
+                        <select name="device_id" class="form-select" required>
+                            {% for device in actuators %}
+                            <option value="{{ device.device_id }}">
+                                {{ device.device_name }} ({{ device.sector_name or 'не назначен' }})
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+    
+                    <div class="form-group">
+                        <label class="form-label">Команда для выполнения</label>
+                        <input type="text" 
+                               name="command" 
+                               class="form-input"
+                               placeholder="Пример: pump_start:5"
+                               required>
+                    </div>
+    
+                    <div class="form-group">
+                        <label class="form-label">Время выполнения</label>
+                        <div class="input-group">
+                            <input type="number" 
+                                   name="delay" 
+                                   class="form-input"
+                                   min="1" 
+                                   value="10"
+                                   required>
+                            <span class="input-unit">секунд</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+    
+            <div class="form-actions">
+                <button type="submit" class="button primary">
+                    Создать правило
+                </button>
+            </div>
+        </form>
+    </div>
+    {% if rules %}
+    <h2 style="margin-top: 50px;">Правила</h2>
+    {% endif %}
+
+    <!-- Список активных правил -->
+    <div class="rules-list">
+        {% for rule in rules %}
+        <div class="rule-card">
+            <div class="rule-card__header">
+                <span class="status {% if rule.is_active %}active{% else %}inactive{% endif %}">
+                    #{{ rule.rule_id }} 
+                    <span class="status-text">
+                        {{ 'Включено' if rule.is_active else 'Выключено' }}
+                    </span>
+                </span>
+                <div class="rule-controls">
+                    <form method="POST" action="{{ url_for('toggle_rule', rule_id=rule.rule_id) }}">
+                        <button type="submit" style="height: 100%;" class="icon-btn">
+                            {{ 'ВЫКЛ' if rule.is_active else 'ВКЛ' }}
+                        </button>
+                    </form>
+                    <form method="POST" action="{{ url_for('delete_rule', rule_id=rule.rule_id) }}" 
+                          onsubmit="return confirm('Вы точно хотите удалить это правило?');">
+                        <button type="submit" class="button danger">Удалить</button>
+                    </form>
+                </div>
+            </div>
+    
+            <div class="rule-body">
+                <div class="condition-block">
+                    <div class="block-header">
+                        <span class="badge">Условие</span>
+                        <span class="sensor">{{ rule.data_name }} ({{ rule.sector_name }})</span>
+                    </div>
+                    <div class="block-content">
+                        <span class="operator">{{ rule.rule_condition|get_condition_symbol }}</span>
+                        <span class="value">{{ rule.rule_value }}</span>
+                    </div>
+                </div>
+    
+                <div class="action-block">
+                    <div class="block-header">
+                        <span class="badge">Действие</span>
+                        <span class="device">{{ rule.device_name }} ({{ rule.sector_name }})</span>
+                    </div>
+                    <div class="block-content">
+                        <span class="command">"{{ rule.rule_message.split('~')[0] }}"</span>
+                        <span class="delay">&nbspзадержка: {{ rule.rule_message.split('~')[1] }}с</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}

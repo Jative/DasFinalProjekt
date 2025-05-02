@@ -29,9 +29,6 @@ class Device:
         self.uuid = get_uuid(self.uuid_filename)
         self.db_worker = db_worker
         self.state = 0
-        self.IoT_name = self.__class__.__name__
-        self.sector = 0
-        self.to_change = None
 
     def print(self, *args, **kwargs) -> None:
         """
@@ -188,8 +185,7 @@ class Device:
         if commands:
             for command in commands:
                 self.execute_command(command)
-        else:
-            sleep(delay)
+        sleep(delay)
 
     def execute_command(self, command: str) -> None:
         """
@@ -199,12 +195,10 @@ class Device:
             command (str): Команда в формате "команда~параметр"
         """
         try:
-            cmd, param = command.split('~')
+            cmd, param = command.split(':')
             self.print(f"Выполнение команды: {cmd} с параметром {param}")
-            
-            if cmd == "SET_DELAY":
-                self.delay = int(param)
-            elif self.to_change:
+
+            if cmd.lower() == "start" and self.to_change:
                 self.process_control_command(cmd, param)
                 
         except ValueError as e:

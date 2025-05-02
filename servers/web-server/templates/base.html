@@ -3,38 +3,20 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{ title }}</title>
+    <title>{% block title %}Умная теплица{% endblock %}</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
 </head>
 <body>
-    <div class="container">
-        <div class="sidebar">
-            <div class="logo-container">
-                <h1 class="logo-title">Теплица</h1>
-            </div>
-            
-            <nav class="menu">
-                <a href="{{ url_for('index') }}" class="menu-item">
-                    <i class="fas fa-home"></i>
-                    <span>Главная</span>
-                </a>
-                
-                <a href="{{ url_for('config') }}" class="menu-item">
-                    <i class="fas fa-cog"></i>
-                    <span>Конфигурация</span>
-                </a>
-                
-                <a href="{{ url_for('about') }}" class="menu-item">
-                    <i class="fas fa-info-circle"></i>
-                    <span>О нас</span>
-                </a>
-            </nav>
-        </div>
+    <nav>
+        <a href="/">Главная</a>
+        <a href="/sectors">Секторы</a>
+        <a href="/devices">Устройства</a>
+        <a href="/rules">Правила</a>
+        <a href="/history">История</a>
+    </nav>
 
-        <main class="main-content">
-            {% block content %}{% endblock %}
-        </main>
+    <div class="content">
+        {% block content %}{% endblock %}
     </div>
 </body>
 </html>

@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+
+{% block title %}Главная панель{% endblock %}
+
+{% block content %}
+<div class="dashboard">
+    <div class="header">
+        <h1>Моя теплица</h1>
+        <div class="stats">
+            <div class="stat-card">
+                <span class="stat-value">{{ devices_total }}</span>
+                <span class="stat-label">Всего устройств</span>
+            </div>
+            <div class="stat-card">
+                <span class="stat-value">{{ active_rules }}</span>
+                <span class="stat-label">Активных правил</span>
+            </div>
+        </div>
+    </div>
+
+    <section class="sectors-section">
+        <h2>Секторы</h2>
+        
+        {% if not sectors %}
+            <div class="empty-state card">
+                <p>Пока нет ни одного сектора</p><br>
+                <a href="/sectors" class="button">Добавить сектор</a>
+            </div>
+        {% else %}
+            <div class="sectors-grid">
+                {% for sector in sectors %}
+                <div class="sector-card">
+                    <div class="sector-header">
+                        <h3>{{ sector.name }}</h3>
+                        <span class="sector-id">ID: {{ sector.sector_id }}</span>
+                    </div>
+                    
+                    {% if sector.description %}
+                        <div class="sector-description">
+                            {{ sector.description }}
+                        </div>
+                    {% endif %}
+
+                    <div class="sensors-data">
+                        <h4>Последние показания:</h4>
+                        <div class="metrics-grid">
+                            {% if sector.metrics %}
+                                {% for param, value in sector.metrics.items() %}
+                                <div class="metric-item">
+                                    <span class="metric-name">{{ param }}</span>
+                                    <span class="metric-value">{{ value }}</span>
+                                </div>
+                                {% endfor %}
+                            {% else %}
+                                <div class="no-metrics">
+                                    Нет данных от устройств
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        {% endif %}
+    </section>
+</div>
+{% endblock %}

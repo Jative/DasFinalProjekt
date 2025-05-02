@@ -121,17 +121,14 @@ class Server:
             tuple | None: Кортеж (имя устройства, UUID) или None при ошибке
         """
         try:
-            # Получаем и проверяем пароль
             auth_data = self.receive_data(conn)
             if auth_data.get('password') != self.password:
                 return None
 
-            # Получаем метаданные устройства
             device_info = self.receive_data(conn)
             device_name = device_info.get('device_name')
             device_uuid = device_info.get('uuid', self.no_uuid)
 
-            # Генерируем новый UUID при необходимости
             if device_uuid == self.no_uuid:
                 device_uuid = str(uuid.uuid4())
                 self.send_data(conn, {'status': 'registered', 'uuid': device_uuid})
@@ -187,7 +184,8 @@ class Server:
         try:
             commands = []
             rules = self.db_worker.get_rules_by_target_device(device_uuid)
-            
+            custom_delay = None
+
             for rule in rules:
                 if not rule['is_active']:
                     continue
@@ -208,9 +206,14 @@ class Server:
                     condition_met = current_value != rule['threshold']
                 
                 if condition_met:
-                    commands.append(rule['message'])
-            
-            return commands
+                    parts = rule['message'].split('~')
+                    command = parts[0]
+                    if len(parts) > 1 and parts[1].isdigit():
+                        custom_delay = int(parts[1])  # Обновляем задержку
+                    commands.append(command)
+
+            final_delay = custom_delay if custom_delay else SEND_STATE_DELAY
+            return (final_delay, commands)
         except Exception as e:
             self.print_with_time(f"Ошибка проверки правил: {e}")
             return []
@@ -246,11 +249,12 @@ class Server:
             while self.running:
                 sensor_data = self.receive_data(conn)
                 self.print_as_device(device_name, device_uuid, sensor_data)
+                self.db_worker.update_device_communication_timestamp(device_uuid)
 
                 self.process_sensor_data(device_uuid, sensor_data)
-                commands = self.check_rules(device_uuid)
+                delay, commands = self.check_rules(device_uuid)
                 response = {
-                    'delay': SEND_STATE_DELAY,
+                    'delay': delay,
                     'commands': commands
                 }
                 self.send_data(conn, response)

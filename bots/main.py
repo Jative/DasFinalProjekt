@@ -47,7 +47,7 @@ def main() -> None:
     for device in device_list:
         t = threading.Thread(target=device.start)
         t.start()
-        sleep(random())
+        sleep(random()+0.1)
 
 
 if __name__ == "__main__":

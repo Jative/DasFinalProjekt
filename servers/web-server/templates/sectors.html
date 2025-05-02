@@ -1,0 +1,319 @@
+{% extends "base.html" %}
+
+{% block title %}Управление секторами{% endblock %}
+
+{% block content %}
+<div class="sectors-management">
+    <div class="flash-container">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="flash {{ category }}">{{ message }}</div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+    </div>
+    <h1>Управление секторами</h1>
+
+    <!-- Форма добавления -->
+    <div class="card editor-card">
+        <h2>Добавить новый сектор</h2>
+        <form method="POST" action="{{ url_for('manage_sectors') }}">
+            <div class="form-grid">
+                <div class="form-group">
+                    <label>Название сектора</label>
+                    <input type="text" 
+                           name="name" 
+                           placeholder="Введите название сектора" 
+                           minlength="3"
+                           maxlength="255" 
+                           required>
+                </div>
+                
+                <div class="form-group">
+                    <label>Описание</label>
+                    <textarea name="description" 
+                              placeholder="Добавьте описание (необязательно)"
+                              rows="1"
+                              maxlength="500"></textarea>
+                </div>
+            </div>
+            <button type="submit" class="button primary">Создать сектор</button>
+        </form>
+    </div>
+
+    <!-- Список секторов -->
+    <div class="sectors-list">
+        <h2 style="margin-top: 20px;">Секторы</h2>
+        {% for sector in sectors %}
+        <div class="sector-card card">
+            <div class="sector-main">
+                <div class="sector-meta">
+                    <h3>{{ sector.name }}</h3>
+                    <div class="sector-info">
+                        <span class="badge">ID: {{ sector.sector_id }}</span>
+                        <span class="badge devices-badge">Устройств: {{ sector.device_count }}</span>
+                    </div>
+                </div>
+                
+                <div class="sector-actions">
+                    <form method="POST" 
+                            action="{{ url_for('delete_sector', sector_id=sector.sector_id) }}" 
+                            onsubmit="return confirm('Вы точно хотите удалить этот сектор? Все связанные устройства будут перемещены в нераспределенные');">
+                        <button type="submit" class="button danger">Удалить</button>
+                    </form>
+                </div>
+            </div>
+        
+            {% if sector.description %}
+            <div class="sector-description">
+                {{ sector.description }}
+            </div>
+            {% endif %}
+        
+            <form method="POST" 
+                  action="{{ url_for('update_sector', sector_id=sector.sector_id) }}" 
+                  class="edit-form">
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label>Название</label>
+                        <input type="text" 
+                               name="name" 
+                               value="{{ sector.name }}" 
+                               required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Описание</label>
+                        <textarea name="description" rows="1">{{ sector.description }}</textarea>
+                    </div>
+                </div>
+                <div class="form-actions">
+                    <button type="submit" class="button primary">Обновить</button>
+                </div>
+            </form>
+        </div>
+        {% else %}
+        <div class="empty-state card">
+            <div class="empty-content">
+                <p>Пока нет созданных секторов</p>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<style>
+/* Унифицированные стили */
+.sectors-management {
+    max-width: 1200px;
+    margin: 2rem auto;
+    padding: 0 1rem;
+}
+
+.management-header {
+    margin-bottom: 2rem;
+    padding: 0 1rem;
+}
+
+/* Карточка сектора (как на главной) */
+.sector-card {
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    margin-bottom: 1.5rem;
+    overflow: hidden;
+}
+
+.sector-card::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: var(--main-color);
+}
+
+/* Верхняя часть карточки */
+.sector-main {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 1rem;
+    align-items: start;
+    padding: 1.5rem;
+    border-bottom: 1px solid #eee;
+}
+
+.sector-meta h3 {
+    margin: 0 0 0.5rem;
+    color: var(--main-color);
+    font-size: 1.4rem;
+}
+
+.sector-info {
+    display: flex;
+    gap: 1rem;
+    flex-wrap: wrap;
+}
+
+.badge {
+    background: #f0f0f0;
+    padding: 0.35rem 0.8rem;
+    border-radius: 15px;
+    font-size: 0.9em;
+}
+
+.devices-badge {
+    background: #e8f5e9;
+    color: var(--main-color);
+}
+
+/* Форма редактирования */
+.edit-form {
+    padding: 1.5rem;
+}
+
+.form-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.5rem;
+}
+
+.form-group:first-child {
+    margin-top: 0;
+}
+
+.form-group input,
+.form-group textarea {
+    margin-top: 0.5rem;
+}
+
+/* Кнопки действий */
+.sector-actions {
+    display: flex;
+    gap: 0.5rem;
+    align-self: start;
+}
+
+.form-group input,
+.form-group textarea {
+    width: 100%;
+    padding: 0.8rem;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 1rem;
+    min-height: 48px; /* Единая минимальная высота */
+    line-height: 1.5;
+    box-sizing: border-box;
+}
+
+.form-group textarea {
+    resize: vertical; /* Разрешаем вертикальное изменение размера */
+    overflow-y: auto; /* Добавляем скролл при необходимости */
+}
+
+/* Адаптивность */
+@media (max-width: 768px) {
+    .sector-main {
+        grid-template-columns: 1fr;
+    }
+    
+    .form-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .sector-actions {
+        justify-self: start;
+    }
+}
+</style>
+
+<style>
+    /* Контейнер для сообщений */
+    .flash-container {
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        z-index: 1000;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        max-width: 400px;
+        width: 90%;
+    }
+
+    /* Стили сообщений */
+    .flash {
+        position: relative;
+        padding: 15px 20px;
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        opacity: 0;
+        transform: translateY(-20px);
+        animation: slideIn 0.3s ease-out forwards;
+        display: flex;
+        align-items: center;
+        border-left: 4px solid;
+    }
+
+    .flash.success {
+        background: #f5fbf6;
+        border-color: #1A472A;
+        color: #1A472A;
+    }
+
+    .flash.error {
+        background: #fff5f5;
+        border-color: #dc3545;
+        color: #dc3545;
+    }
+
+    /* Анимации */
+    @keyframes slideIn {
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    @keyframes slideOut {
+        to {
+            opacity: 0;
+            transform: translateY(-20px);
+        }
+    }
+
+    /* Иконка закрытия */
+    .flash-close {
+        margin-left: 15px;
+        cursor: pointer;
+        opacity: 0.7;
+        transition: opacity 0.2s;
+    }
+
+    .flash-close:hover {
+        opacity: 1;
+    }
+
+    @media (max-width: 768px) {
+        .flash-container {
+            top: 10px;
+            right: 10px;
+            left: 10px;
+            width: auto;
+        }
+    }
+</style>
+    
+    <script>
+    // Автоматическое скрытие сообщений
+    document.querySelectorAll('.flash').forEach(flash => {
+        setTimeout(() => {
+            flash.style.transform = 'translateY(-20px)';
+            flash.style.opacity = '0';
+            setTimeout(() => flash.remove(), 300);
+        }, 5000);
+    });
+</script>
+{% endblock %}

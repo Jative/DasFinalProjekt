@@ -1,0 +1,216 @@
+{% extends "base.html" %}
+
+{% block title %}Управление устройствами{% endblock %}
+
+{% block content %}
+<div class="devices">
+    <h1>Устройства теплицы</h1>
+    
+    <div class="device-controls">
+        <div class="filters">
+            <select id="sector-filter" class="filter-select">
+                <option value="all">Все секторы</option>
+                {% for sector in sectors %}
+                    <option value="{{ sector.sector_id }}">{{ sector.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+    </div>
+
+    <div class="device-grid">
+        {% for device in devices %}
+        <div class="device-card card" data-sector="{{ device.sector_id }}">
+            <div class="device-header">
+                <h3 title="{{ device.device_name }}">{{ device.device_name }}</h3>
+                <span class="device-uuid">{{ device.device_uuid }}</span>
+            </div>
+
+            <div class="device-info">
+                <div class="info-row">
+                    <span>Сектор:</span>
+                    <select class="sector-select" data-device-id="{{ device.device_id }}">
+                        <option value="">Не назначено</option>
+                        {% for sector in sectors %}
+                        <option value="{{ sector.sector_id }}" 
+                            {% if device.sector_id == sector.sector_id %}selected{% endif %}>
+                            {{ sector.name }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="info-row">
+                    <span>Последняя активность:</span>
+                    <span class="last-seen">
+                        {{ device.device_last_communication|datetime_format }}
+                    </span>
+                </div>
+            </div>
+        </div>
+        {% else %}
+        <div class="empty-state card">
+            <p>Устройства не обнаружены</p>
+            <p>Подключите новые устройства к системе</p>
+        </div>
+        {% endfor %}
+    </div>
+    <script>
+        document.querySelectorAll('.sector-select').forEach(select => {
+            select.addEventListener('change', function() {
+                const deviceId = this.dataset.deviceId;
+                const sectorId = this.value || null;
+                
+                fetch('/update-device-sector', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        device_id: deviceId,
+                        sector_id: sectorId
+                    })
+                })
+                .then(response => {
+                    if (!response.ok) throw new Error('Ошибка сети');
+                    return response.json();
+                })
+                .then(data => {
+                    if (data.success) {
+                        // Обновляем карточку устройства
+                        const card = this.closest('.device-card');
+                        card.dataset.sector = sectorId;
+                        location.reload();  // Или динамическое обновление интерфейса
+                    } else {
+                        alert('Ошибка: ' + data.error);
+                    }
+                })
+                .catch(error => {
+                    console.error('Ошибка:', error);
+                    alert('Произошла ошибка при обновлении');
+                });
+            });
+        });
+    </script>
+    <script>
+        document.getElementById('sector-filter').addEventListener('change', function() {
+            const selectedSector = this.value;
+            const deviceCards = document.querySelectorAll('.device-card');
+            
+            deviceCards.forEach(card => {
+                const cardSector = card.dataset.sector || '';
+                const isVisible = selectedSector === 'all' || cardSector === selectedSector;
+                
+                if (isVisible) {
+                    card.classList.remove('hidden');
+                } else {
+                    card.classList.add('hidden');
+                }
+            });
+        });
+    </script>
+</div>
+<style>
+    /* Основной контейнер */
+    .devices {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 0 15px;
+    }
+    
+    /* Сетка карточек */
+    .device-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(400px, 1fr));
+        gap: 1.5rem;
+        padding: 15px 0;
+    }
+    
+    /* Карточка устройства */
+    .device-card {
+        position: relative;
+        background: white;
+        border-radius: 8px;
+        padding: 20px;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+        min-height: 180px;
+        border-left: 4px solid var(--main-color);
+        margin-left: 4px; /* Компенсация для акцентной линии */
+    }
+    
+    /* Заголовок карточки */
+    .device-header {
+        display: flex;
+        justify-content: space-between;
+        gap: 15px;
+        margin-bottom: 12px;
+    }
+    
+    .device-header h3 {
+        margin: 0;
+        font-size: 1.2rem;
+        line-height: 1.4;
+        color: var(--main-color);
+        word-break: break-word;
+        flex: 1;
+    }
+    
+    .device-uuid {
+        font-size: 0.75rem;
+        color: #666;
+        background: #f8f8f8;
+        padding: 4px 8px;
+        border-radius: 4px;
+        align-self: flex-start;
+    }
+    
+    /* Блок информации */
+    .device-info {
+        display: grid;
+        gap: 12px;
+    }
+    
+    .info-row {
+        display: grid;
+        grid-template-columns: 100px 1fr;
+        align-items: center;
+        gap: 10px;
+    }
+    
+    .sector-select {
+        width: 100%;
+        padding: 8px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+    }
+    
+    .last-seen {
+        font-size: 0.85rem;
+        color: #666;
+        margin-top: auto;
+        padding-top: 12px;
+        text-align: right;
+    }
+    
+    /* Адаптивность */
+    @media (max-width: 900px) {
+        .device-grid {
+            grid-template-columns: 1fr;
+        }
+        
+        .device-card {
+            margin-left: 0;
+            border-left-width: 3px;
+        }
+    }
+    
+    @media (max-width: 480px) {
+        .info-row {
+            grid-template-columns: 1fr;
+        }
+        
+        .last-seen {
+            text-align: left;
+        }
+    }
+</style>
+{% endblock %}
