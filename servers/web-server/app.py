@@ -1,6 +1,7 @@
 from functools import wraps
 from flask import Flask, render_template, request, redirect, url_for, session, jsonify, flash
 import json
+from collections import defaultdict
 from datetime import datetime
 from DBMS_worker import DBMS_worker
 
@@ -30,7 +31,17 @@ def datetime_format(value, format='%d.%m.%Y %H:%M'):
     """Фильтр для форматирования даты"""
     if value is None:
         return ""
-    return value.strftime(format)
+    
+    # Если значение - целое число (UNIX timestamp)
+    if isinstance(value, int):
+        dt = datetime.fromtimestamp(value)
+    # Если это уже объект datetime
+    elif isinstance(value, datetime):
+        dt = value
+    else:
+        return ""
+        
+    return dt.strftime(format)
 
 @app.route('/', methods=['GET'])
 @login_required
@@ -405,7 +416,12 @@ def history():
 
         # Формируем запрос данных
         query = """
-            SELECT dh.data_timestamp, dh.data_value, d.device_name, s.name
+            SELECT 
+                s.sector_id,
+                s.name as sector_name,
+                UNIX_TIMESTAMP(dh.data_timestamp) as timestamp,
+                dh.data_value,
+                d.device_name
             FROM data_history dh
             JOIN devices d ON dh.data_device_id = d.device_id
             LEFT JOIN sectors s ON d.sector_id = s.sector_id
@@ -417,7 +433,6 @@ def history():
             query += " AND s.sector_id = %s"
             params.append(selected_sector)
 
-        # Добавляем временной фильтр
         if time_range == '24h':
             query += " AND dh.data_timestamp >= NOW() - INTERVAL 1 DAY"
         elif time_range == '7d':
@@ -426,25 +441,49 @@ def history():
         query += " ORDER BY dh.data_timestamp ASC"
 
         db.cursor.execute(query, params)
-        history_data = [
-            {
-                'timestamp': row[0],
-                'value': row[1],
-                'device': row[2],
-                'sector': row[3]
-            }
-            for row in db.cursor.fetchall()
-        ]
+        results = db.cursor.fetchall()  # Сохраняем результаты запроса
+        
+        # Исправляем индексы полей
+        history_data = []
+        sector_data = defaultdict(list)
+        
+        for row in results:
+            # Правильные индексы:
+            # 0 - sector_id
+            # 1 - sector_name
+            # 2 - timestamp (UNIX)
+            # 3 - data_value
+            # 4 - device_name
+            
+            # Формируем history_data
+            history_data.append({
+                'timestamp': datetime.fromtimestamp(row[2]),  # Конвертируем UNIX-время
+                'value': row[3],
+                'device': row[4],
+                'sector': row[1]  # sector_name
+            })
+            
+            # Формируем sector_data
+            sector_id = row[0] or "unassigned"
+            sector_data[sector_id].append({
+                'sector_id': sector_id,
+                'sector_name': row[1] or "Не назначено",
+                'timestamp': datetime.fromtimestamp(row[2]),
+                'value': row[3],
+                'device': row[4]
+            })
 
-        history_json = json.dumps([
-            {
+        # Подготовка данных для JSON
+        history_json = {}
+        for sector_id, entries in sector_data.items():
+            history_json[str(sector_id)] = [{
                 "timestamp": entry['timestamp'].isoformat(),
                 "value": entry['value'],
-                "device": entry['device'],
-                "sector": entry['sector']
-            }
-            for entry in history_data
-        ])
+                "device": entry['device']
+            } for entry in entries]
+
+        if not history_data:
+            flash("Нет данных для выбранных параметров", "info")
 
         return render_template(
             'history.html',
@@ -453,8 +492,9 @@ def history():
             selected_param=selected_param,
             selected_sector=selected_sector,
             time_range=time_range,
-            history_data=history_data,
-            history_json=history_json
+            sector_data=sector_data,
+            history_json=json.dumps(history_json),
+            history_data=history_data
         )
 
     except Exception as e:

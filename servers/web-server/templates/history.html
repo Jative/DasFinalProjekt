@@ -48,7 +48,19 @@
 
     <!-- График -->
     <div class="chart-container card">
-        <canvas id="historyChart"></canvas>
+        {% if sector_data %}
+            {% for sector_id, entries in sector_data.items() %}
+            <div class="sector-chart">
+                <h4>{{ entries[0].sector_name }}</h4>
+                <!-- Добавляем контейнер с фиксированной высотой -->
+                <div class="chart-wrapper">
+                    <canvas id="chart-{{ sector_id }}"></canvas>
+                </div>
+            </div>
+            {% endfor %}
+        {% else %}
+            <p class="no-data">Нет данных для отображения</p>
+        {% endif %}
     </div>
 
     <!-- Таблица данных -->
@@ -80,49 +92,88 @@
 <!-- Подключение Chart.js -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
-    // Подготовка данных для графика
-    const historyData = JSON.parse('{{ history_json|safe }}');
-    
-    const chartData = {
-        labels: historyData.map(entry => 
-            new Date(entry.timestamp).toLocaleTimeString('ru-RU', {timeStyle: 'short'})
-        ),
-        datasets: [{
-            label: '{{ selected_param }}',
-            data: historyData.map(entry => entry.value),
-            borderColor: '#1A472A',
-            tension: 0.1
-        }]
-    };
+    document.addEventListener('DOMContentLoaded', () => {
+        const historyData = JSON.parse('{{ history_json|safe }}');
+        const colorPalette = ['#1A472A', '#2C5530', '#4CAF50', '#8BC34A', '#CDDC39'];
 
-    // Инициализация графика
-    const ctx = document.getElementById('historyChart').getContext('2d');
-    new Chart(ctx, {
-        type: 'line',
-        data: chartData,
-        options: {
-            responsive: true,
-            plugins: {
-                title: {
-                    display: true,
-                    text: 'История изменений'
-                }
-            },
-            scales: {
-                y: {
-                    title: {
-                        display: true,
-                        text: 'Значение'
-                    }
-                },
-                x: {
-                    title: {
-                        display: true,
-                        text: 'Время'
-                    }
-                }
-            }
+        // Дебаг
+        console.log('History Data:', historyData);
+
+        // Проверка наличия данных
+        if (!historyData || Object.keys(historyData).length === 0) {
+            document.querySelector('.chart-container').innerHTML = 
+                '<p class="no-data">Нет данных для выбранных фильтров</p>';
+            return;
         }
+
+        // Создание графиков
+        Object.entries(historyData).forEach(([sectorId, data], index) => {
+            const canvasId = `chart-${sectorId}`;
+            const canvas = document.getElementById(canvasId);
+            
+            if (!canvas) {
+                console.error(`Canvas element with id ${canvasId} not found!`);
+                return;
+            }
+
+            try {
+                // Подготовка данных
+                const labels = data.map(entry => {
+                    try {
+                        return new Date(entry.timestamp).toLocaleTimeString('ru-RU', {
+                            hour: '2-digit',
+                            minute: '2-digit'
+                        });
+                    } catch (e) {
+                        console.error('Invalid timestamp:', entry.timestamp);
+                        return 'N/A';
+                    }
+                });
+
+                const values = data.map(entry => parseFloat(entry.value));
+
+                new Chart(canvas.getContext('2d'), {
+                    type: 'line',
+                    data: {
+                        labels: labels,
+                        datasets: [{
+                            label: `{{ selected_param }}`,
+                            data: values,
+                            borderColor: colorPalette[index % colorPalette.length],
+                            tension: 0.1,
+                            borderWidth: 2,
+                            pointRadius: 3
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                position: 'top'
+                            }
+                        },
+                        scales: {
+                            x: {
+                                title: {
+                                    display: true,
+                                    text: 'Время'
+                                }
+                            },
+                            y: {
+                                title: {
+                                    display: true,
+                                    text: 'Значение'
+                                }
+                            }
+                        }
+                    }
+                });
+
+            } catch (e) {
+                console.error(`Error creating chart ${canvasId}:`, e);
+            }
+        });
     });
 </script>
 
@@ -172,6 +223,46 @@
 
     .data-table th {
         background-color: #f5f5f5;
+    }
+
+    .sector-chart {
+        margin: 20px 0;
+        padding: 15px;
+        background: #fff;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    }
+
+    .chartjs-render-monitor {
+        animation: none !important; /* Убираем анимацию для стабильности */
+    }
+    
+    .sector-chart h4 {
+        margin: 0 0 1rem 0;
+        color: var(--main-color);
+    }
+    
+    .sector-chart canvas {
+        max-height: 300px;
+    }
+</style>
+<style>
+    .no-data {
+        text-align: center;
+        color: #666;
+        padding: 2rem;
+        border: 2px dashed #eee;
+        border-radius: 8px;
+    }
+    
+    .chart-container canvas {
+        max-height: 400px;
+        min-height: 300px;
+    }
+
+    .chart-wrapper {
+        height: 300px;
+        position: relative;
     }
 </style>
 {% endblock %}
