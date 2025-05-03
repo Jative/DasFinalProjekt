@@ -1,5 +1,6 @@
 from functools import wraps
 from flask import Flask, render_template, request, redirect, url_for, session, jsonify, flash
+import json
 from datetime import datetime
 from DBMS_worker import DBMS_worker
 
@@ -264,6 +265,19 @@ def manage_devices():
     
     return render_template('devices.html', devices=devices, sectors=sectors)
 
+@app.route('/devices/delete/<int:device_id>', methods=['POST'])
+@login_required
+def delete_device(device_id):
+    try:
+        success = db.remove_device(device_id)
+        if success:
+            flash('Устройство успешно удалено', 'success')
+        else:
+            flash('Устройство не найдено', 'error')
+    except Exception as e:
+        flash(f'Ошибка удаления: {str(e)}', 'error')
+    return redirect(url_for('manage_devices'))
+
 @app.route('/rules', methods=['GET', 'POST'])
 @login_required
 def manage_rules():
@@ -422,6 +436,16 @@ def history():
             for row in db.cursor.fetchall()
         ]
 
+        history_json = json.dumps([
+            {
+                "timestamp": entry['timestamp'].isoformat(),
+                "value": entry['value'],
+                "device": entry['device'],
+                "sector": entry['sector']
+            }
+            for entry in history_data
+        ])
+
         return render_template(
             'history.html',
             params=available_params,
@@ -429,7 +453,8 @@ def history():
             selected_param=selected_param,
             selected_sector=selected_sector,
             time_range=time_range,
-            history_data=history_data
+            history_data=history_data,
+            history_json=history_json
         )
 
     except Exception as e:

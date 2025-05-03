@@ -46,6 +46,13 @@
                     </span>
                 </div>
             </div>
+            <div class="delete-button-container">
+                <form method="POST" 
+                      action="{{ url_for('delete_device', device_id=device.device_id) }}" 
+                      onsubmit="return confirm('Удалить устройство {{ device.device_name }}?');">
+                    <button type="submit" class="button danger">Удалить</button>
+                </form>
+            </div>
         </div>
         {% else %}
         <div class="empty-state card">
@@ -210,6 +217,46 @@
         
         .last-seen {
             text-align: left;
+        }
+    }
+</style>
+<style>
+    /* Стили для контейнера кнопки */
+    .delete-button-container {
+        position: absolute;
+        bottom: 15px;
+        right: 15px;
+        margin-top: 10px;
+    }
+
+    /* Стандартные стили кнопки из вашего примера */
+    .button.danger {
+        background-color: #dc3545;
+        color: white;
+        padding: 0.5rem 1rem;
+        border-radius: 4px;
+        transition: opacity 0.3s;
+    }
+
+    .button.danger:hover {
+        opacity: 0.9;
+    }
+
+    /* Позиционирование для карточки */
+    .device-card {
+        position: relative;
+        padding-bottom: 70px; /* Добавляем место для кнопки */
+    }
+
+    @media (max-width: 480px) {
+        .delete-button-container {
+            bottom: 10px;
+            right: 10px;
+        }
+        
+        .button.danger {
+            padding: 0.4rem 0.8rem;
+            font-size: 0.9rem;
         }
     }
 </style>

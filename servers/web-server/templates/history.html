@@ -81,19 +81,15 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
     // Подготовка данных для графика
-    const historyData = {
-        labels: [
-            {% for entry in history_data %}
-                "{{ entry.timestamp.strftime('%H:%M') }}",
-            {% endfor %}
-        ],
+    const historyData = JSON.parse('{{ history_json|safe }}');
+    
+    const chartData = {
+        labels: historyData.map(entry => 
+            new Date(entry.timestamp).toLocaleTimeString('ru-RU', {timeStyle: 'short'})
+        ),
         datasets: [{
             label: '{{ selected_param }}',
-            data: [
-                {% for entry in history_data %}
-                    {{ entry.value }},
-                {% endfor %}
-            ],
+            data: historyData.map(entry => entry.value),
             borderColor: '#1A472A',
             tension: 0.1
         }]
@@ -103,7 +99,7 @@
     const ctx = document.getElementById('historyChart').getContext('2d');
     new Chart(ctx, {
         type: 'line',
-        data: historyData,
+        data: chartData,
         options: {
             responsive: true,
             plugins: {
