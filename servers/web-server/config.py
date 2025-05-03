@@ -1,0 +1,4 @@
+REMOTE_SERV_ADDR = 'localhost'
+REMOTE_SERV_PORT = 9050
+
+ENCRYPTION_KEY = b'WahrheitUndLiebe'

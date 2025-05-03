@@ -1,12 +1,22 @@
 from functools import wraps
 from flask import Flask, render_template, request, redirect, url_for, session, jsonify, flash
 import json
+import requests
+import socket
+import struct
+from threading import Lock
 from collections import defaultdict
+from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import datetime
 from DBMS_worker import DBMS_worker
+from encryption import encrypt, decrypt
+from config import REMOTE_SERV_ADDR, REMOTE_SERV_PORT
 
 app = Flask(__name__)
 app.secret_key = "super secret key"
+app.config['SUBSCRIPTION_SERVER'] = (REMOTE_SERV_ADDR, REMOTE_SERV_PORT)
+app.config['SOCKET_TIMEOUT'] = 5
+socket_lock = Lock()
 
 # Инициализация DBMS_worker
 db = DBMS_worker(
@@ -21,8 +31,17 @@ if not db.created:
 def login_required(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
+        # Проверка авторизации
         if not session.get('logged_in'):
             return redirect(url_for('login'))
+        
+        # Проверка подписки
+        email = session.get('user_email')
+        if not email or not check_subscription(email):
+            session.clear()
+            flash('Доступ запрещен: неактивная подписка или ошибка проверки', 'error')
+            return redirect(url_for('login'))
+        
         return f(*args, **kwargs)
     return decorated_function
 
@@ -54,15 +73,23 @@ def login():
         email = request.form.get('email')
         password = request.form.get('password')
         
-        # Заглушка проверки подписки (реализуйте свою логику)
-        has_subscription = check_subscription(email)
-        
-        if has_subscription:
-            session['logged_in'] = True
-            session['user_email'] = email
-            return redirect(url_for('dashboard'))
-        
-        return render_template('login.html', error="Неактивная подписка")
+        # Получаем пользователя из БД
+        user = db.get_user_by_email(email)
+        if not user:
+            return render_template('login.html', error="Пользователь не найден")
+
+        # Проверка пароля
+        if not check_password_hash(user['password_hash'], password):
+            return render_template('login.html', error="Неверный пароль")
+
+        # Проверка подписки на удалённом сервере
+        if not check_subscription(email):
+            return render_template('login.html', error="Подписка не активна")
+
+        # Авторизация
+        session['logged_in'] = True
+        session['user_email'] = email
+        return redirect(url_for('dashboard'))
     
     return render_template('login.html')
 
@@ -378,9 +405,34 @@ def delete_rule(rule_id):
     db.remove_rule(rule_id)
     return redirect(url_for('manage_rules'))
 
-def check_subscription(email):
-    """Заглушка проверки подписки (реализуйте свою логику)"""
-    return True
+def check_subscription(email: str) -> bool:
+    """Проверка подписки через сокет-соединение с удалённым сервером"""
+    encrypted_data = encrypt(json.dumps({"email": email}))
+    
+    try:
+        with socket_lock:
+            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+                sock.settimeout(app.config['SOCKET_TIMEOUT'])
+                sock.connect(app.config['SUBSCRIPTION_SERVER'])
+                
+                # Отправка данных
+                sock.sendall(struct.pack('!I', len(encrypted_data)))
+                sock.sendall(encrypted_data)
+                
+                # Получение ответа
+                length_data = sock.recv(4)
+                if len(length_data) != 4:
+                    return False
+                
+                response_length = struct.unpack('!I', length_data)[0]
+                response = sock.recv(response_length)
+                
+                decrypted = decrypt(response)
+                return json.loads(decrypted).get('active', False)
+    
+    except (socket.timeout, ConnectionRefusedError, Exception) as e:
+        app.logger.error(f"Ошибка проверки подписки: {str(e)}")
+        return False
 
 @app.template_filter('get_condition_symbol')
 def get_condition_symbol(condition: int) -> str:
@@ -499,6 +551,47 @@ def history():
 
     except Exception as e:
         return f"Ошибка загрузки истории: {str(e)}", 500
+
+def validate_credentials(email: str, password: str) -> bool:
+    try:
+        db.cursor.execute(
+            "SELECT password_hash FROM users WHERE email = %s",
+            (email,)
+        )
+        result = db.cursor.fetchone()
+        if result and check_password_hash(result[0], password):
+            return True
+        return False
+    except Exception as e:
+        app.logger.error(f"Auth error: {str(e)}")
+        return False
+
+@app.route('/register', methods=['GET', 'POST'])
+def register():
+    if request.method == 'POST':
+        email = request.form.get('email')
+        password = request.form.get('password')
+        confirm_password = request.form.get('confirm_password')
+
+        if not all([email, password, confirm_password]):
+            return render_template('register.html', error="Все поля обязательны")
+
+        if password != confirm_password:
+            return render_template('register.html', error="Пароли не совпадают")
+
+        if db.get_user_by_email(email):
+            return render_template('register.html', error="Пользователь уже существует")
+
+        # Хеширование пароля
+        password_hash = generate_password_hash(password)
+        
+        if db.add_user(email, password_hash):
+            flash('Регистрация успешна. Теперь войдите в систему.', 'success')
+            return redirect(url_for('login'))
+        
+        return render_template('register.html', error="Ошибка регистрации")
+
+    return render_template('register.html')
 
 if __name__ == '__main__':
     app.run(debug=True)

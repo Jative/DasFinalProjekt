@@ -1066,3 +1066,20 @@ button:hover {
 .status.inactive .status-text {
     color: #ff4444;
 }
+
+.auth-link {
+    margin-top: 1.5rem;
+    text-align: center;
+    color: #666;
+}
+
+.auth-link a {
+    color: var(--main-color);
+    text-decoration: none;
+    transition: opacity 0.3s;
+}
+
+.auth-link a:hover {
+    opacity: 0.8;
+    text-decoration: underline;
+}

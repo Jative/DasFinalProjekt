@@ -131,6 +131,16 @@ class DBMS_worker:
                 ON DELETE CASCADE
             );
         """)
+
+        self.cursor.execute("""
+        CREATE TABLE IF NOT EXISTS users (
+            user_id INTEGER NOT NULL AUTO_INCREMENT,
+            email VARCHAR(255) NOT NULL UNIQUE,
+            password_hash VARCHAR(255) NOT NULL,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            PRIMARY KEY (user_id)
+        );
+        """)
         
         self.cursor.execute("""
             CREATE TRIGGER IF NOT EXISTS after_actual_data_insert
@@ -565,3 +575,33 @@ class DBMS_worker:
             (sector_id,)
         )
         return [row[0] for row in self.cursor.fetchall()]
+
+    def add_user(self, email: str, password_hash: str) -> int | None:
+        """Добавляет пользователя без привязки к подписке"""
+        try:
+            self.cursor.execute(
+                """
+                INSERT INTO users (email, password_hash)
+                VALUES (%s, %s)
+                """,
+                (email, password_hash)
+            )
+            return self.cursor.lastrowid
+        except mysql.connector.Error as e:
+            print(f"Ошибка добавления пользователя: {e}")
+            return None
+
+    def get_user_by_email(self, email: str) -> dict | None:
+        """Возвращает пользователя по email"""
+        self.cursor.execute(
+            "SELECT user_id, email, password_hash FROM users WHERE email = %s",
+            (email,)
+        )
+        result = self.cursor.fetchone()
+        if result:
+            return {
+                'user_id': result[0],
+                'email': result[1],
+                'password_hash': result[2]
+            }
+        return None

@@ -25,6 +25,11 @@
 - /servers/IoT-server/DBMS_worker.py - класс для взаимодействия с БД
 - /servers/IoT-server/encryption.py - функции шифрования/дешифрования
 - /servers/IoT-server/main.py - реализация и точка входа для локального веб-сокет-сервера
+### Главный удалённый сервер
+- /servers/main-server/config.py - хранит конфигурацию для работы сервера, а также шифрования
+- /servers/main-server/DBMS_worker.py - класс для взаимодействия с БД
+- /servers/main-server/encryption.py - функции шифрования/дешифрования
+- /servers/main-server/main.py - реализация и точка входа для главного удалённого сервера
 ### Веб-сервер
 - /servers/web-server/css/styles.css - хранит стили HTML-документов веб-сервера
 - /servers/web-server/templates/base.html - хранит шаблон HTML. Содержит стили, меню
@@ -32,10 +37,13 @@
 - /servers/web-server/templates/devices.html - внезапно, управление IoT-устройствами
 - /servers/web-server/templates/devices.html - хранит страницу истории наблюдений
 - /servers/web-server/templates/login.html - содержит страницу входа
+- /servers/web-server/templates/register.html - содержит страницу регистрации
 - /servers/web-server/templates/rules.html - содержит страницу конфигурации правил
 - /servers/web-server/templates/sectors.html - содержит страницу конфигурации секторов(теплиц)
 - /servers/web-server/app.py - содержит реализацию веб-сервера на основе Flask
+- /servers/web-server/config.py - хранит конфигурацию для работы сервера, а также шифрования
 - /servers/web-server/DBMS_worker.py - класс для взаимодействия с БД
+- /servers/web-server/encryption.py - функции шифрования/дешифрования
 ### Прочее
 - /db_schema.png - ERD всех баз данных
 - /readme.md - справочная информация, призванная упростить понимание принципов работы проекта

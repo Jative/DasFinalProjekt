@@ -131,6 +131,16 @@ class DBMS_worker:
                 ON DELETE CASCADE
             );
         """)
+
+        self.cursor.execute("""
+        CREATE TABLE IF NOT EXISTS users (
+            user_id INTEGER NOT NULL AUTO_INCREMENT,
+            email VARCHAR(255) NOT NULL UNIQUE,
+            password_hash VARCHAR(255) NOT NULL,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            PRIMARY KEY (user_id)
+        );
+        """)
         
         self.cursor.execute("""
             CREATE TRIGGER IF NOT EXISTS after_actual_data_insert
