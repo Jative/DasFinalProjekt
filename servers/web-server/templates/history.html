@@ -1,0 +1,181 @@
+{% extends "base.html" %}
+
+{% block title %}История измерений{% endblock %}
+
+{% block content %}
+<div class="history-container">
+    <h1>История измерений</h1>
+    
+    <!-- Фильтры -->
+    <div class="filters card">
+        <form method="GET" class="filter-form">
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Параметр:</label>
+                    <select name="param" class="form-select">
+                        {% for param in params %}
+                            <option value="{{ param }}" {% if param == selected_param %}selected{% endif %}>
+                                {{ param }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>Сектор:</label>
+                    <select name="sector" class="form-select">
+                        <option value="all">Все секторы</option>
+                        {% for sector in sectors %}
+                            <option value="{{ sector.id }}" {% if sector.id|string == selected_sector %}selected{% endif %}>
+                                {{ sector.name }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>Период:</label>
+                    <select name="range" class="form-select">
+                        <option value="24h" {% if time_range == '24h' %}selected{% endif %}>24 часа</option>
+                        <option value="7d" {% if time_range == '7d' %}selected{% endif %}>7 дней</option>
+                    </select>
+                </div>
+
+                <button type="submit" class="button">Применить фильтры</button>
+            </div>
+        </form>
+    </div>
+
+    <!-- График -->
+    <div class="chart-container card">
+        <canvas id="historyChart"></canvas>
+    </div>
+
+    <!-- Таблица данных -->
+    <div class="data-table card">
+        <h3>Последние измерения</h3>
+        <table>
+            <thead>
+                <tr>
+                    <th>Время</th>
+                    <th>Значение</th>
+                    <th>Устройство</th>
+                    <th>Сектор</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for entry in history_data[-10:] %}
+                    <tr>
+                        <td>{{ entry.timestamp|datetime_format }}</td>
+                        <td>{{ entry.value }}</td>
+                        <td>{{ entry.device }}</td>
+                        <td>{{ entry.sector }}</td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Подключение Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    // Подготовка данных для графика
+    const historyData = {
+        labels: [
+            {% for entry in history_data %}
+                "{{ entry.timestamp.strftime('%H:%M') }}",
+            {% endfor %}
+        ],
+        datasets: [{
+            label: '{{ selected_param }}',
+            data: [
+                {% for entry in history_data %}
+                    {{ entry.value }},
+                {% endfor %}
+            ],
+            borderColor: '#1A472A',
+            tension: 0.1
+        }]
+    };
+
+    // Инициализация графика
+    const ctx = document.getElementById('historyChart').getContext('2d');
+    new Chart(ctx, {
+        type: 'line',
+        data: historyData,
+        options: {
+            responsive: true,
+            plugins: {
+                title: {
+                    display: true,
+                    text: 'История изменений'
+                }
+            },
+            scales: {
+                y: {
+                    title: {
+                        display: true,
+                        text: 'Значение'
+                    }
+                },
+                x: {
+                    title: {
+                        display: true,
+                        text: 'Время'
+                    }
+                }
+            }
+        }
+    });
+</script>
+
+<style>
+    .history-container {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 20px;
+    }
+
+    .filter-form {
+        margin-bottom: 2rem;
+    }
+
+    .form-row {
+        display: flex;
+        gap: 1rem;
+        flex-wrap: wrap;
+    }
+
+    .form-group {
+        flex: 1;
+        min-width: 200px;
+    }
+
+    .chart-container {
+        margin: 2rem 0;
+        padding: 1rem;
+    }
+
+    #historyChart {
+        max-height: 500px;
+    }
+
+    .data-table table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 1rem;
+    }
+
+    .data-table th,
+    .data-table td {
+        padding: 0.75rem;
+        text-align: left;
+        border-bottom: 1px solid #ddd;
+    }
+
+    .data-table th {
+        background-color: #f5f5f5;
+    }
+</style>
+{% endblock %}

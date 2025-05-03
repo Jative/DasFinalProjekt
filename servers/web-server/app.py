@@ -368,5 +368,72 @@ def get_condition_symbol(condition: int) -> str:
     }
     return symbols.get(condition, 'UNKNOWN')
 
+@app.route('/history')
+@login_required
+def history():
+    try:
+        # Получаем список доступных параметров
+        db.cursor.execute("""
+            SELECT DISTINCT data_name 
+            FROM data_history
+            ORDER BY data_name
+        """)
+        available_params = [row[0] for row in db.cursor.fetchall()]
+
+        # Получаем список секторов
+        db.cursor.execute("SELECT sector_id, name FROM sectors")
+        sectors = [dict(zip(['id', 'name'], row)) for row in db.cursor.fetchall()]
+
+        # Фильтры из GET-параметров
+        selected_param = request.args.get('param', available_params[0] if available_params else '')
+        selected_sector = request.args.get('sector', 'all')
+        time_range = request.args.get('range', '24h')
+
+        # Формируем запрос данных
+        query = """
+            SELECT dh.data_timestamp, dh.data_value, d.device_name, s.name
+            FROM data_history dh
+            JOIN devices d ON dh.data_device_id = d.device_id
+            LEFT JOIN sectors s ON d.sector_id = s.sector_id
+            WHERE dh.data_name = %s
+        """
+        params = [selected_param]
+
+        if selected_sector != 'all':
+            query += " AND s.sector_id = %s"
+            params.append(selected_sector)
+
+        # Добавляем временной фильтр
+        if time_range == '24h':
+            query += " AND dh.data_timestamp >= NOW() - INTERVAL 1 DAY"
+        elif time_range == '7d':
+            query += " AND dh.data_timestamp >= NOW() - INTERVAL 7 DAY"
+
+        query += " ORDER BY dh.data_timestamp ASC"
+
+        db.cursor.execute(query, params)
+        history_data = [
+            {
+                'timestamp': row[0],
+                'value': row[1],
+                'device': row[2],
+                'sector': row[3]
+            }
+            for row in db.cursor.fetchall()
+        ]
+
+        return render_template(
+            'history.html',
+            params=available_params,
+            sectors=sectors,
+            selected_param=selected_param,
+            selected_sector=selected_sector,
+            time_range=time_range,
+            history_data=history_data
+        )
+
+    except Exception as e:
+        return f"Ошибка загрузки истории: {str(e)}", 500
+
 if __name__ == '__main__':
     app.run(debug=True)
