@@ -5,23 +5,20 @@ class DBMS_worker:
     def __init__(self, host: str, user: str, password: str, db_name: str):
         """
         Инициализирует соединение с MySQL сервером и подключается к базе данных.
-        
+
         Args:
             host (str): Хост MySQL сервера
             user (str): Имя пользователя
             password (str): Пароль пользователя
             db_name (str): Название базы данных
-            
+
         Attributes:
             created (bool): Флаг успешного подключения
             error (str): Сообщение об ошибке при неудачном подключении
         """
         try:
             self.cnx = mysql.connector.connect(
-                host=host,
-                user=user,
-                password=password,
-                autocommit=True
+                host=host, user=user, password=password, autocommit=True
             )
             self.cursor = self.cnx.cursor(buffered=True)
             self.connect_to_db(db_name)
@@ -30,11 +27,10 @@ class DBMS_worker:
             self.created = False
             self.error = str(e)
 
-
     def connect_to_db(self, db_name: str) -> None:
         """
         Подключается к указанной базе данных. Если база не существует - создает её.
-        
+
         Args:
             db_name (str): Название базы данных для подключения
         """
@@ -46,7 +42,6 @@ class DBMS_worker:
             else:
                 raise
 
-
     def create_db(self, db_name: str) -> None:
         """
         Создает новую базу данных и все необходимые таблицы:
@@ -55,7 +50,7 @@ class DBMS_worker:
         - data_history (история изменений)
         - rules (правила обработки данных)
         - tasks (задачи для устройств)
-        
+
         Также создает триггеры для автоматического сохранения истории изменений.
         """
         self.cursor.execute(f"CREATE DATABASE IF NOT EXISTS {db_name}")
@@ -72,7 +67,8 @@ class DBMS_worker:
             """
         )
 
-        self.cursor.execute("""
+        self.cursor.execute(
+            """
             CREATE TABLE IF NOT EXISTS devices (
                 device_id INTEGER NOT NULL AUTO_INCREMENT,
                 device_uuid CHAR(36) UNIQUE,
@@ -82,9 +78,11 @@ class DBMS_worker:
                 PRIMARY KEY (device_id),
                 FOREIGN KEY (sector_id) REFERENCES sectors(sector_id) ON DELETE SET NULL
             );
-        """)
+        """
+        )
 
-        self.cursor.execute("""
+        self.cursor.execute(
+            """
             CREATE TABLE IF NOT EXISTS actual_data (
                 data_id INTEGER NOT NULL AUTO_INCREMENT,
                 data_device_id INTEGER,
@@ -97,9 +95,11 @@ class DBMS_worker:
                 REFERENCES devices(device_id)
                 ON DELETE CASCADE
             );
-        """)
+        """
+        )
 
-        self.cursor.execute("""
+        self.cursor.execute(
+            """
             CREATE TABLE IF NOT EXISTS data_history (
                 data_id INTEGER NOT NULL AUTO_INCREMENT,
                 data_device_id INTEGER,
@@ -111,9 +111,11 @@ class DBMS_worker:
                 REFERENCES devices(device_id)
                 ON DELETE CASCADE
             );
-        """)
+        """
+        )
 
-        self.cursor.execute("""
+        self.cursor.execute(
+            """
             CREATE TABLE IF NOT EXISTS rules (
                 rule_id INTEGER NOT NULL AUTO_INCREMENT,
                 rule_data_id INTEGER,
@@ -130,9 +132,11 @@ class DBMS_worker:
                 REFERENCES devices(device_id)
                 ON DELETE CASCADE
             );
-        """)
+        """
+        )
 
-        self.cursor.execute("""
+        self.cursor.execute(
+            """
         CREATE TABLE IF NOT EXISTS users (
             user_id INTEGER NOT NULL AUTO_INCREMENT,
             email VARCHAR(255) NOT NULL UNIQUE,
@@ -140,9 +144,11 @@ class DBMS_worker:
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
             PRIMARY KEY (user_id)
         );
-        """)
-        
-        self.cursor.execute("""
+        """
+        )
+
+        self.cursor.execute(
+            """
             CREATE TRIGGER IF NOT EXISTS after_actual_data_insert
             AFTER INSERT ON actual_data
             FOR EACH ROW
@@ -158,9 +164,11 @@ class DBMS_worker:
                 NEW.data_value, 
                 NEW.data_timestamp
             );
-        """)
+        """
+        )
 
-        self.cursor.execute("""
+        self.cursor.execute(
+            """
             CREATE TRIGGER IF NOT EXISTS after_actual_data_update
             AFTER UPDATE ON actual_data
             FOR EACH ROW
@@ -178,16 +186,16 @@ class DBMS_worker:
                     NEW.data_timestamp
                 );
             END;
-        """)
-
+        """
+        )
 
     def get_device_id(self, device_uuid: str) -> int | None:
         """
         Получает ID устройства по его UUID.
-        
+
         Args:
             device_uuid (str): Уникальный идентификатор устройства
-            
+
         Returns:
             int | None: ID устройства или None если не найдено
         """
@@ -197,7 +205,7 @@ class DBMS_worker:
             FROM devices
             WHERE device_uuid = %s
             """,
-            (device_uuid,)
+            (device_uuid,),
         )
         query_result = self.cursor.fetchone()
         if query_result:
@@ -208,21 +216,22 @@ class DBMS_worker:
     def add_device(self, uuid: str, name: str, sector_id: int = None) -> bool:
         """
         Добавляет новое устройство в базу данных с возможностью привязки к сектору.
-        
+
         Args:
             uuid (str): Уникальный идентификатор устройства
             name (str): Человекочитаемое имя устройства
             sector_id (int, optional): ID сектора для привязки. Defaults to None.
-            
+
         Returns:
             bool: True при успешном добавлении
         """
         try:
-            self.cursor.execute("""
+            self.cursor.execute(
+                """
                 INSERT INTO devices (device_uuid, device_name, sector_id)
                 VALUES (%s, %s, %s)
                 """,
-                (uuid, name, sector_id)
+                (uuid, name, sector_id),
             )
             return True
         except mysql.connector.Error as e:
@@ -231,19 +240,20 @@ class DBMS_worker:
     def remove_device(self, device_id: int) -> bool:
         """
         Полностью удаляет устройство и все связанные данные через каскадное удаление.
-        
+
         Args:
             device_id (int): ID удаляемого устройства
-            
+
         Returns:
             bool: True при успешном удалении
         """
         try:
-            self.cursor.execute("""
+            self.cursor.execute(
+                """
                 DELETE FROM devices 
                 WHERE device_id = %s
                 """,
-                (device_id,)
+                (device_id,),
             )
             return self.cursor.rowcount > 0
         except mysql.connector.Error as e:
@@ -252,32 +262,33 @@ class DBMS_worker:
     def assign_device_to_sector(self, device_id: int, sector_id: int) -> bool:
         """
         Привязывает устройство к указанному сектору.
-        
+
         Args:
             device_id (int): ID устройства для привязки
             sector_id (int): ID целевого сектора
-            
+
         Returns:
             bool: True при успешном обновлении
         """
         try:
-            # Проверяем существование сектора
-            self.cursor.execute("""
+            self.cursor.execute(
+                """
                 SELECT sector_id 
                 FROM sectors 
                 WHERE sector_id = %s
                 """,
-                (sector_id,)
+                (sector_id,),
             )
             if not self.cursor.fetchone():
                 return False
 
-            self.cursor.execute("""
+            self.cursor.execute(
+                """
                 UPDATE devices 
                 SET sector_id = %s 
                 WHERE device_id = %s
                 """,
-                (sector_id, device_id)
+                (sector_id, device_id),
             )
             return self.cursor.rowcount > 0
         except mysql.connector.Error as e:
@@ -286,20 +297,21 @@ class DBMS_worker:
     def unassign_device_from_sector(self, device_id: int) -> bool:
         """
         Отвязывает устройство от текущего сектора.
-        
+
         Args:
             device_id (int): ID устройства для отвязки
-            
+
         Returns:
             bool: True при успешном обновлении
         """
         try:
-            self.cursor.execute("""
+            self.cursor.execute(
+                """
                 UPDATE devices 
                 SET sector_id = NULL 
                 WHERE device_id = %s
                 """,
-                (device_id,)
+                (device_id,),
             )
             return self.cursor.rowcount > 0
         except mysql.connector.Error as e:
@@ -308,11 +320,11 @@ class DBMS_worker:
     def add_sector(self, name: str, description: str = None) -> int | None:
         """
         Создает новый сектор (теплицу) в системе.
-        
+
         Args:
             name (str): Уникальное название сектора
             description (str, optional): Описание сектора
-            
+
         Returns:
             int | None: ID созданного сектора или None при ошибке
         """
@@ -322,7 +334,7 @@ class DBMS_worker:
                 INSERT INTO sectors (name, description)
                 VALUES (%s, %s)
                 """,
-                (name, description)
+                (name, description),
             )
             return self.cursor.lastrowid
         except mysql.connector.Error as e:
@@ -332,17 +344,16 @@ class DBMS_worker:
     def remove_sector(self, sector_id: int) -> bool:
         """
         Удаляет сектор и отвязывает все связанные устройства.
-        
+
         Args:
             sector_id (int): ID удаляемого сектора
-            
+
         Returns:
             bool: True если сектор был удален, False если не существовал
         """
         try:
             self.cursor.execute(
-                "DELETE FROM sectors WHERE sector_id = %s",
-                (sector_id,)
+                "DELETE FROM sectors WHERE sector_id = %s", (sector_id,)
             )
             return self.cursor.rowcount > 0
         except mysql.connector.Error as e:
@@ -352,12 +363,12 @@ class DBMS_worker:
     def add_device_data_batch(self, device_uuid: str, data: dict) -> bool:
         """
         Добавляет или обновляет набор показателей для устройства за одну операцию.
-        
+
         Args:
             device_uuid (str): UUID устройства
             data (dict): Словарь {параметр: значение}
                 Пример: {"temperature": 25, "humidity": 60}
-                
+
         Returns:
             bool: True при успешном обновлении
         """
@@ -366,10 +377,8 @@ class DBMS_worker:
             return False
 
         try:
-            # Формируем пакет данных для вставки
             values = [(device_id, param, value) for param, value in data.items()]
-            
-            # Используем executemany для пакетной вставки
+
             self.cursor.executemany(
                 """
                 INSERT INTO actual_data 
@@ -379,7 +388,7 @@ class DBMS_worker:
                     data_value = VALUES(data_value),
                     data_timestamp = NOW()
                 """,
-                values
+                values,
             )
             return True
         except mysql.connector.Error as e:
@@ -387,17 +396,15 @@ class DBMS_worker:
             return False
 
     def get_actual_data(
-        self,
-        device_uuid: str,
-        parameter_name: str = None
+        self, device_uuid: str, parameter_name: str = None
     ) -> dict | None:
         """
         Получает актуальные данные устройства.
-        
+
         Args:
             device_uuid (str): UUID устройства
             parameter_name (str, optional): Фильтр по конкретному параметру
-            
+
         Returns:
             dict: {parameter_name: {'value': int, 'timestamp': datetime}}
             None: Если устройство не найдено
@@ -413,20 +420,15 @@ class DBMS_worker:
                 WHERE data_device_id = %s
             """
             params = [device_id]
-            
+
             if parameter_name:
                 query += " AND data_name = %s"
                 params.append(parameter_name)
 
             self.cursor.execute(query, params)
             results = self.cursor.fetchall()
-            
-            return {
-                row[0]: {
-                    'value': row[1],
-                    'timestamp': row[2]
-                } for row in results
-            }
+
+            return {row[0]: {"value": row[1], "timestamp": row[2]} for row in results}
         except mysql.connector.Error as e:
             print(f"Ошибка получения данных: {e}")
             return None
@@ -438,12 +440,12 @@ class DBMS_worker:
         condition: int,
         threshold: int,
         target_device_uuid: str,
-        message: str
+        message: str,
     ) -> int | None:
         """
         Добавляет новое правило для устройства-исполнителя.
         Разрешено несколько правил для одного устройства.
-        
+
         Args:
             source_device_uuid (str): UUID устройства-источника данных
             data_name (str): Название параметра в actual_data
@@ -451,14 +453,14 @@ class DBMS_worker:
             threshold (int): Пороговое значение
             target_device_uuid (str): UUID устройства-исполнителя
             message (str): Команда для отправки
-            
+
         Returns:
             int | None: ID созданного правила
         """
         try:
             source_device_id = self.get_device_id(source_device_uuid)
             target_device_id = self.get_device_id(target_device_uuid)
-            
+
             if not source_device_id or not target_device_id:
                 return None
 
@@ -469,7 +471,7 @@ class DBMS_worker:
                 WHERE data_device_id = %s AND data_name = %s
                 LIMIT 1
                 """,
-                (source_device_id, data_name)
+                (source_device_id, data_name),
             )
             data_row = self.cursor.fetchone()
             if not data_row:
@@ -485,20 +487,20 @@ class DBMS_worker:
                     rule_message
                 ) VALUES (%s, %s, %s, %s, %s)
                 """,
-                (data_row[0], condition, threshold, target_device_id, message)
+                (data_row[0], condition, threshold, target_device_id, message),
             )
             return self.cursor.lastrowid
-            
+
         except Exception as e:
             return None
 
     def get_rules_by_target_device(self, target_device_uuid: str) -> list[dict]:
         """
         Получает все правила для устройства-исполнителя.
-        
+
         Args:
             target_device_uuid (str): UUID целевого устройства
-            
+
         Returns:
             list[dict]: Список правил в формате:
             {
@@ -531,9 +533,9 @@ class DBMS_worker:
                 JOIN devices d ON a.data_device_id = d.device_id
                 WHERE r.rule_device_id = %s
                 """,
-                (target_device_id,)
+                (target_device_id,),
             )
-            
+
             return [
                 {
                     "rule_id": row[0],
@@ -542,7 +544,7 @@ class DBMS_worker:
                     "condition": row[3],
                     "threshold": row[4],
                     "message": row[5],
-                    "is_active": row[6]
+                    "is_active": row[6],
                 }
                 for row in self.cursor.fetchall()
             ]
@@ -552,18 +554,15 @@ class DBMS_worker:
     def remove_rule(self, rule_id: int) -> bool:
         """
         Удаляет правило по ID.
-        
+
         Args:
             rule_id (int): ID удаляемого правила
-            
+
         Returns:
             bool: True если правило было удалено
         """
         try:
-            self.cursor.execute(
-                "DELETE FROM rules WHERE rule_id = %s",
-                (rule_id,)
-            )
+            self.cursor.execute("DELETE FROM rules WHERE rule_id = %s", (rule_id,))
             return self.cursor.rowcount > 0
         except Exception as e:
             return False
@@ -571,8 +570,7 @@ class DBMS_worker:
     def get_sector_devices(self, sector_id: int) -> list[int]:
         """Получаем список ID устройств в секторе"""
         self.cursor.execute(
-            "SELECT device_id FROM devices WHERE sector_id = %s",
-            (sector_id,)
+            "SELECT device_id FROM devices WHERE sector_id = %s", (sector_id,)
         )
         return [row[0] for row in self.cursor.fetchall()]
 
@@ -584,7 +582,7 @@ class DBMS_worker:
                 INSERT INTO users (email, password_hash)
                 VALUES (%s, %s)
                 """,
-                (email, password_hash)
+                (email, password_hash),
             )
             return self.cursor.lastrowid
         except mysql.connector.Error as e:
@@ -594,14 +592,13 @@ class DBMS_worker:
     def get_user_by_email(self, email: str) -> dict | None:
         """Возвращает пользователя по email"""
         self.cursor.execute(
-            "SELECT user_id, email, password_hash FROM users WHERE email = %s",
-            (email,)
+            "SELECT user_id, email, password_hash FROM users WHERE email = %s", (email,)
         )
         result = self.cursor.fetchone()
         if result:
             return {
-                'user_id': result[0],
-                'email': result[1],
-                'password_hash': result[2]
+                "user_id": result[0],
+                "email": result[1],
+                "password_hash": result[2],
             }
         return None

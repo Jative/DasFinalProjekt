@@ -7,13 +7,13 @@ class DBMS_worker:
     def __init__(self, host: str, user: str, password: str, db_name: str):
         """
         Инициализирует подключение к MySQL и целевую базу данных.
-        
+
         Args:
             host: Хост MySQL сервера
             user: Имя пользователя
             password: Пароль пользователя
             db_name: Название базы данных
-            
+
         Attributes:
             cnx: Объект соединения с MySQL
             cursor: Курсор для выполнения SQL-запросов
@@ -22,10 +22,7 @@ class DBMS_worker:
         """
         try:
             self.cnx = mysql.connector.connect(
-                host=host,
-                user=user,
-                password=password,
-                autocommit=True
+                host=host, user=user, password=password, autocommit=True
             )
             self.cursor = self.cnx.cursor()
             self.connect_to_db(db_name)
@@ -34,15 +31,14 @@ class DBMS_worker:
             self.created = False
             self.error = str(e)
 
-
     def connect_to_db(self, db_name: str) -> None:
         """
         Подключается к указанной базе данных. Если база не существует - создает её
         и заполняет тестовыми данными.
-        
+
         Args:
             db_name: Название базы данных
-            
+
         Raises:
             mysql.connector.Error: Ошибки MySQL кроме отсутствия базы данных
         """
@@ -55,14 +51,13 @@ class DBMS_worker:
             else:
                 raise
 
-
     def create_db(self, db_name: str) -> None:
         """
         Создает новую базу данных и структуру таблиц.
-        
+
         Args:
             db_name: Название создаваемой базы данных
-            
+
         Создает:
             - Базу данных с указанным именем
             - Таблицу indicators с полями:
@@ -74,7 +69,8 @@ class DBMS_worker:
         self.cursor.execute(f"CREATE DATABASE IF NOT EXISTS {db_name}")
         self.cursor.execute(f"USE {db_name}")
 
-        self.cursor.execute("""
+        self.cursor.execute(
+            """
             CREATE TABLE IF NOT EXISTS indicators (
                 indicator_id INT NOT NULL AUTO_INCREMENT,
                 indicator_sector INT,
@@ -82,8 +78,8 @@ class DBMS_worker:
                 indicator_value INT,
                 PRIMARY KEY (indicator_id)
             )
-        """)
-
+        """
+        )
 
     def insert_test_values(self) -> None:
         """
@@ -96,38 +92,37 @@ class DBMS_worker:
         allowed_values = ((22, 28), (60, 90), (0, 100))
         for i in range(2):
             for j in range(len(params)):
-                self.cursor.execute("""
+                self.cursor.execute(
+                    """
                     INSERT INTO indicators (
                         indicator_sector,
                         indicator_name,
                         indicator_value
                     )
                     VALUES (%s, %s, %s)
-                """, (i, params[j], randint(*allowed_values[j])))
-    
+                """,
+                    (i, params[j], randint(*allowed_values[j])),
+                )
 
-    def get_value(
-        self,
-        sector: int,
-        name: str
-    ) -> int:
+    def get_value(self, sector: int, name: str) -> int:
         """
         Получает текущее значение показателя из базы данных.
-        
+
         Args:
             sector: Номер сектора теплицы
             name: Название показателя
-            
+
         Returns:
             int: Значение показателя или 0 при ошибке
         """
         try:
-            self.cursor.execute("""
+            self.cursor.execute(
+                """
                     SELECT indicator_value
                     FROM indicators
                     WHERE indicator_sector = %s AND indicator_name = %s
                 """,
-                (sector, name)
+                (sector, name),
             )
             cursor_result = self.cursor.fetchone()
             if cursor_result:
@@ -136,7 +131,6 @@ class DBMS_worker:
                 raise
         except:
             return 0
-    
 
     def change_value(
         self,
@@ -146,12 +140,12 @@ class DBMS_worker:
     ) -> bool:
         """
         Изменяет значение показателя в базе данных.
-        
+
         Args:
             sector: Номер сектора
             name: Название показателя
             value: Величина изменения (может быть отрицательной)
-            
+
         Returns:
             bool: True при успешном обновлении
         """
@@ -162,7 +156,7 @@ class DBMS_worker:
                 SET indicator_value = indicator_value + %s
                 WHERE indicator_sector = %s AND indicator_name = %s
                 """,
-                (value, sector, name)
+                (value, sector, name),
             )
             return True
         except:

@@ -19,13 +19,13 @@ class Server:
     def __init__(self, host: str, port: int, password: str, no_uuid: str):
         """
         Инициализирует сервер IoT для управления умной теплицей.
-        
+
         Args:
             host (str): IP-адрес для прослушивания подключений
             port (int): Порт для входящих соединений
             password (str): Секретный пароль для аутентификации устройств
             no_uuid (str): Специальный UUID для новых неподключенных устройств
-            
+
         Attributes:
             sock (socket.socket): Основной сокет сервера
             connections (list): Активные клиентские подключения
@@ -38,19 +38,14 @@ class Server:
         self.no_uuid = no_uuid
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.connections = []
-        self.db_worker = DBMS_worker(
-            "localhost",
-            "root",
-            "123",
-            "GreenHouseLocal"
-        )
+        self.db_worker = DBMS_worker("localhost", "root", "123", "GreenHouseLocal")
         self.running = False
 
     @staticmethod
     def print_with_time(*args, **kwargs) -> None:
         """
         Выводит сообщение с временной меткой в формате HH:MM:SS.
-        
+
         Args:
             *args: Аргументы для передачи в стандартный print()
             **kwargs: Именованные аргументы для print()
@@ -62,24 +57,26 @@ class Server:
     def print_as_device(device_name: str, device_uuid: str, data: object) -> None:
         """
         Форматирует вывод сообщения от имени устройства.
-        
+
         Args:
             device_name (str): Человекочитаемое имя устройства
             device_uuid (str): Уникальный идентификатор устройства
             data (object): Данные для отображения (автоматически конвертируются в JSON)
         """
-        Server.print_with_time(f"{device_uuid}[{device_name}]: {json.dumps(data, ensure_ascii=False)}")
+        Server.print_with_time(
+            f"{device_uuid}[{device_name}]: {json.dumps(data, ensure_ascii=False)}"
+        )
 
     def receive_data(self, conn: socket.socket) -> dict:
         """
         Принимает и десериализует данные из сокета.
-        
+
         Args:
             conn (socket.socket): Активное клиентское подключение
-            
+
         Returns:
             dict: Расшифрованные данные в виде словаря
-            
+
         Raises:
             JSONDecodeError: При получении некорректных данных
             ConnectionResetError: При обрыве соединения
@@ -91,11 +88,11 @@ class Server:
     def send_data(self, conn: socket.socket, data: object) -> None:
         """
         Сериализует и отправляет данные через сокет.
-        
+
         Args:
             conn (socket.socket): Активное клиентское подключение
             data (object): Данные для отправки (обычно словарь)
-            
+
         Raises:
             TypeError: При проблемах с сериализацией данных
             BrokenPipeError: При попытке записи в закрытый сокет
@@ -107,59 +104,59 @@ class Server:
     def perform_login(self, conn: socket.socket) -> tuple[str, str] | None:
         """
         Выполняет процесс аутентификации устройства.
-        
+
         Протокол авторизации:
         1. Устройство отправляет словарь с паролем {'password': str}
         2. Сервер проверяет пароль
         3. Устройство отправляет метаданные {'device_name': str, 'uuid': str}
         4. Сервер генерирует новый UUID при необходимости
-        
+
         Args:
             conn (socket.socket): Клиентское подключение
-            
+
         Returns:
             tuple | None: Кортеж (имя устройства, UUID) или None при ошибке
         """
         try:
             auth_data = self.receive_data(conn)
-            if auth_data.get('password') != self.password:
+            if auth_data.get("password") != self.password:
                 return None
 
             device_info = self.receive_data(conn)
-            device_name = device_info.get('device_name')
-            device_uuid = device_info.get('uuid', self.no_uuid)
+            device_name = device_info.get("device_name")
+            device_uuid = device_info.get("uuid", self.no_uuid)
 
             if device_uuid == self.no_uuid:
                 device_uuid = str(uuid.uuid4())
-                self.send_data(conn, {'status': 'registered', 'uuid': device_uuid})
+                self.send_data(conn, {"status": "registered", "uuid": device_uuid})
             else:
-                self.send_data(conn, {'status': 'authorized'})
+                self.send_data(conn, {"status": "authorized"})
 
             return device_name, device_uuid
 
         except Exception as e:
             self.print_with_time(f"Ошибка авторизации: {e}")
             return None
-    
+
     def process_sensor_data(self, device_uuid: str, data: dict) -> None:
         """
         Обрабатывает данные с датчиков и сохраняет в БД.
-        
+
         Args:
             device_uuid (str): UUID устройства-источника
             data (dict): Словарь с показателями датчиков:
                 {
-                    'state': int, 
-                    'temperature': int, 
-                    'humidity': int, 
+                    'state': int,
+                    'temperature': int,
+                    'humidity': int,
                     ...
                 }
-                
+
         Note:
             Поле 'state' игнорируется при сохранении в БД
         """
         try:
-            sensor_data = {k:v for k,v in data.items() if k != 'state'}
+            sensor_data = {k: v for k, v in data.items() if k != "state"}
             self.db_worker.add_device_data_batch(device_uuid, sensor_data)
         except Exception as e:
             self.print_with_time(f"Ошибка обработки данных: {e}")
@@ -167,13 +164,13 @@ class Server:
     def check_rules(self, device_uuid: str) -> list[str]:
         """
         Проверяет активные правила для устройства и генерирует команды.
-        
+
         Args:
             device_uuid (str): UUID целевого устройства-исполнителя
-            
+
         Returns:
             list[str]: Список команд для выполнения в формате "команда~параметр"
-            
+
         Logic:
             1. Получает все правила для устройства из БД
             2. Для каждого активного правила:
@@ -187,26 +184,29 @@ class Server:
             custom_delay = None
 
             for rule in rules:
-                if not rule['is_active']:
+                if not rule["is_active"]:
                     continue
-                
-                current_value = self.db_worker.get_actual_data(
-                    rule['source_device'],
-                    rule['parameter']
-                ).get(rule['parameter'], {}).get('value', 0)
-                
+
+                current_value = (
+                    self.db_worker.get_actual_data(
+                        rule["source_device"], rule["parameter"]
+                    )
+                    .get(rule["parameter"], {})
+                    .get("value", 0)
+                )
+
                 condition_met = False
-                if rule['condition'] == 1:  # >
-                    condition_met = current_value > rule['threshold']
-                elif rule['condition'] == 2:  # <
-                    condition_met = current_value < rule['threshold']
-                elif rule['condition'] == 3:  # ==
-                    condition_met = current_value == rule['threshold']
-                elif rule['condition'] == 4:  # !=
-                    condition_met = current_value != rule['threshold']
-                
+                if rule["condition"] == 1:  # >
+                    condition_met = current_value > rule["threshold"]
+                elif rule["condition"] == 2:  # <
+                    condition_met = current_value < rule["threshold"]
+                elif rule["condition"] == 3:  # ==
+                    condition_met = current_value == rule["threshold"]
+                elif rule["condition"] == 4:  # !=
+                    condition_met = current_value != rule["threshold"]
+
                 if condition_met:
-                    parts = rule['message'].split('~')
+                    parts = rule["message"].split("~")
                     command = parts[0]
                     if len(parts) > 1 and parts[1].isdigit():
                         custom_delay = int(parts[1])  # Обновляем задержку
@@ -221,11 +221,11 @@ class Server:
     def handle_connection(self, conn: socket.socket, addr: tuple) -> None:
         """
         Обрабатывает жизненный цикл клиентского подключения.
-        
+
         Args:
             conn (socket.socket): Новое клиентское подключение
             addr (tuple): Кортеж (IP-адрес, порт) клиента
-            
+
         Workflow:
             1. Аутентификация устройства
             2. Регистрация в системе
@@ -253,10 +253,7 @@ class Server:
 
                 self.process_sensor_data(device_uuid, sensor_data)
                 delay, commands = self.check_rules(device_uuid)
-                response = {
-                    'delay': delay,
-                    'commands': commands
-                }
+                response = {"delay": delay, "commands": commands}
                 self.send_data(conn, response)
         except Exception as e:
             self.print_as_device(device_name, device_uuid, f"Ошибка: {str(e)}")
@@ -267,7 +264,7 @@ class Server:
     def start(self) -> None:
         """
         Запускает основной цикл работы сервера.
-        
+
         Actions:
             1. Привязывает сокет к указанному адресу
             2. Переходит в режим прослушивания
@@ -286,9 +283,7 @@ class Server:
                 conn, addr = self.sock.accept()
                 self.connections.append(conn)
                 threading.Thread(
-                    target=self.handle_connection,
-                    args=(conn, addr),
-                    daemon=True
+                    target=self.handle_connection, args=(conn, addr), daemon=True
                 ).start()
         except KeyboardInterrupt:
             self.shutdown()
@@ -296,7 +291,7 @@ class Server:
     def shutdown(self) -> None:
         """
         Безопасно останавливает сервер.
-        
+
         Actions:
             1. Устанавливает флаг running=False
             2. Закрывает все активные подключения
@@ -318,6 +313,6 @@ if __name__ == "__main__":
         host=LOC_SOCK_SERV_ADDR,
         port=LOC_SOCK_SERV_PORT,
         password=PASSWORD,
-        no_uuid=NO_UUID
+        no_uuid=NO_UUID,
     )
     server.start()
