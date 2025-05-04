@@ -11,7 +11,6 @@ from config import (
     RECONNECT_DELAY,
     SERVER_ADDR,
     SERVER_PORT,
-    NO_UUID,
     PASSWORD,
     SEND_STATE_DELAY,
 )

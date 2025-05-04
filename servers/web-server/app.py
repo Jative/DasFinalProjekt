@@ -10,7 +10,6 @@ from flask import (
     flash,
 )
 import json
-import requests
 import socket
 import struct
 from threading import Lock
