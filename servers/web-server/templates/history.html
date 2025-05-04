@@ -76,7 +76,7 @@
                 </tr>
             </thead>
             <tbody>
-                {% for entry in history_data[-10:] %}
+                {% for entry in history_data[-10:][::-1] %}
                     <tr>
                         <td>{{ entry.timestamp|datetime_format }}</td>
                         <td>{{ entry.value }}</td>

@@ -15,8 +15,8 @@ fi
 
 konsole --noclose -e "bash -c 'source ./venv/bin/activate && python ./servers/main-server/main.py; exec bash'" &
 konsole --noclose -e "bash -c 'source ./venv/bin/activate && python ./servers/web-server/app.py; exec bash'" &
-sleep 1
 konsole --noclose -e "bash -c 'source ./venv/bin/activate && python ./servers/IoT-server/main.py; exec bash'" &
+sleep 1
 konsole --noclose -e "bash -c 'source ./venv/bin/activate && python ./bots/main.py; exec bash'" &
 
 exit
