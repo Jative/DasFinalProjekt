@@ -1,6 +1,7 @@
 import socket
 import json
 import datetime
+import random
 from time import sleep
 from typing import Optional
 
@@ -13,6 +14,7 @@ from config import (
     SERVER_PORT,
     PASSWORD,
     SEND_STATE_DELAY,
+    ERROR_PERCENT
 )
 
 
@@ -138,9 +140,13 @@ class Device:
             try:
                 sensor_data = {"state": self.state}
                 for indicator in self.indicators:
-                    sensor_data[indicator] = self.db_worker.get_value(
-                        self.sector, indicator
-                    )
+                    value = self.db_worker.get_value(self.sector, indicator)
+                    if value != 0:
+                        error = max(1, int(abs(value) * ERROR_PERCENT / 100))
+                        noisy_value = value + random.randint(-error, error)
+                    else:
+                        noisy_value = 0  # Обработка нулевого значения
+                    sensor_data[indicator] = noisy_value
 
                 self.print(f"Отправка данных: {sensor_data}")
                 if not self.send_data(sensor_data):
