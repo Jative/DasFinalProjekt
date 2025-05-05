@@ -43,7 +43,7 @@
         <a href="/devices">Устройства</a>
         <a href="/rules">Правила</a>
         <a href="/history">История</a>
-        <p>{{ session.get("sub_until") }}</p>
+        <p>{% if session.get("logged_in") %}{{ session.get("sub_until") }} {% endif %}</p>
     </nav>
 
     <div class="content">

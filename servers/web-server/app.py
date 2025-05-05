@@ -352,11 +352,12 @@ def manage_rules():
         condition = request.form.get("condition")
         value = request.form.get("value")
         device_id = request.form.get("device_id")
-        command = request.form.get("command")
+        command = request.form.get("command")  # "start"
+        load = request.form.get("load")        # число от пользователя
         delay = request.form.get("delay", "10")
 
-        if all([data_id, condition, value, device_id, command, delay]):
-            rule_message = f"{command}~{delay}"
+        if all([data_id, condition, value, device_id, command, load, delay]):
+            rule_message = f"{command}:{load}~{delay}"
 
             db.cursor.execute(
                 """
@@ -367,7 +368,7 @@ def manage_rules():
                     rule_device_id, 
                     rule_message
                 ) VALUES (%s, %s, %s, %s, %s)
-            """,
+                """,
                 (data_id, condition, value, device_id, rule_message),
             )
 

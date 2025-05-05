@@ -60,11 +60,20 @@
     
                     <div class="form-group">
                         <label class="form-label">Команда для выполнения</label>
-                        <input type="text" 
-                               name="command" 
-                               class="form-input"
-                               placeholder="Пример: start:5"
-                               required>
+                        <div style="display: flex; gap: 1rem; align-items: center">
+                            <select name="command" class="form-select" style="flex: 0 0 120px">
+                                <option value="start">start</option>
+                            </select>
+                            <span>:</span>
+                            <input type="number" 
+                                   name="load" 
+                                   class="form-input"
+                                   placeholder="Нагрузка"
+                                   min="1" 
+                                   max="100"
+                                   required
+                                   style="flex: 1">
+                        </div>
                     </div>
     
                     <div class="form-group">
