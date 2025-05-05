@@ -34,6 +34,7 @@ class DBMS_worker:
         Args:
             db_name (str): Название базы данных для подключения
         """
+        self.cnx.ping(reconnect=True, attempts=3)
         try:
             self.cursor.execute(f"USE {db_name}")
         except mysql.connector.Error as err:
@@ -53,6 +54,7 @@ class DBMS_worker:
 
         Также создает триггеры для автоматического сохранения истории изменений.
         """
+        self.cnx.ping(reconnect=True, attempts=3)
         self.cursor.execute(f"CREATE DATABASE IF NOT EXISTS {db_name}")
         self.cursor.execute(f"USE {db_name}")
 
@@ -199,6 +201,7 @@ class DBMS_worker:
         Returns:
             int | None: ID устройства или None если не найдено
         """
+        self.cnx.ping(reconnect=True, attempts=3)
         self.cursor.execute(
             """
             SELECT device_id
@@ -220,6 +223,7 @@ class DBMS_worker:
         Args:
             device_uuid (str): Уникальный идентификатор устройства
         """
+        self.cnx.ping(reconnect=True, attempts=3)
         self.cursor.execute(
             """
             UPDATE devices
@@ -241,6 +245,7 @@ class DBMS_worker:
         Returns:
             bool: True при успешном добавлении
         """
+        self.cnx.ping(reconnect=True, attempts=3)
         try:
             self.cursor.execute(
                 """
@@ -263,6 +268,7 @@ class DBMS_worker:
         Returns:
             bool: True при успешном удалении
         """
+        self.cnx.ping(reconnect=True, attempts=3)
         try:
             self.cursor.execute(
                 """
@@ -286,6 +292,7 @@ class DBMS_worker:
         Returns:
             bool: True при успешном обновлении
         """
+        self.cnx.ping(reconnect=True, attempts=3)
         try:
             # Проверяем существование сектора
             self.cursor.execute(
@@ -321,6 +328,7 @@ class DBMS_worker:
         Returns:
             bool: True при успешном обновлении
         """
+        self.cnx.ping(reconnect=True, attempts=3)
         try:
             self.cursor.execute(
                 """
@@ -345,6 +353,7 @@ class DBMS_worker:
         Returns:
             int | None: ID созданного сектора или None при ошибке
         """
+        self.cnx.ping(reconnect=True, attempts=3)
         try:
             self.cursor.execute(
                 """
@@ -368,6 +377,7 @@ class DBMS_worker:
         Returns:
             bool: True если сектор был удален, False если не существовал
         """
+        self.cnx.ping(reconnect=True, attempts=3)
         try:
             self.cursor.execute(
                 "DELETE FROM sectors WHERE sector_id = %s", (sector_id,)
@@ -389,6 +399,7 @@ class DBMS_worker:
         Returns:
             bool: True при успешном обновлении
         """
+        self.cnx.ping(reconnect=True, attempts=3)
         device_id = self.get_device_id(device_uuid)
         if not device_id or not data:
             return False
@@ -426,6 +437,7 @@ class DBMS_worker:
             dict: {parameter_name: {'value': int, 'timestamp': datetime}}
             None: Если устройство не найдено
         """
+        self.cnx.ping(reconnect=True, attempts=3)
         device_id = self.get_device_id(device_uuid)
         if not device_id:
             return None
@@ -474,6 +486,7 @@ class DBMS_worker:
         Returns:
             int | None: ID созданного правила
         """
+        self.cnx.ping(reconnect=True, attempts=3)
         try:
             source_device_id = self.get_device_id(source_device_uuid)
             target_device_id = self.get_device_id(target_device_uuid)
@@ -530,6 +543,7 @@ class DBMS_worker:
                 "is_active": bool
             }
         """
+        self.cnx.ping(reconnect=True, attempts=3)
         target_device_id = self.get_device_id(target_device_uuid)
         if not target_device_id:
             return []
@@ -578,6 +592,7 @@ class DBMS_worker:
         Returns:
             bool: True если правило было удалено
         """
+        self.cnx.ping(reconnect=True, attempts=3)
         try:
             self.cursor.execute("DELETE FROM rules WHERE rule_id = %s", (rule_id,))
             return self.cursor.rowcount > 0
