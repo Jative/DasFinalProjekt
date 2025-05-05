@@ -17,33 +17,43 @@ class DBMS_worker:
             error (str): Сообщение об ошибке при неудачном подключении
         """
         try:
-            self.cnx = mysql.connector.connect(
+            cnx = mysql.connector.connect(
                 host=host, user=user, password=password, autocommit=True
             )
-            self.cursor = self.cnx.cursor(buffered=True)
-            self.connect_to_db(db_name)
+            cnx.cursor().execute(f"CREATE DATABASE IF NOT EXISTS {db_name}")
+            cnx.close()
+            self.cnx_pool = mysql.connector.pooling.MySQLConnectionPool(
+                pool_name="gh_pool",
+                pool_size=5,
+                host=host,
+                user=user,
+                password=password,
+                database=db_name,
+                autocommit=True
+            )
+            self._initialize_database(db_name)
             self.created = True
         except Exception as e:
             self.created = False
             self.error = str(e)
 
-    def connect_to_db(self, db_name: str) -> None:
-        """
-        Подключается к указанной базе данных. Если база не существует - создает её.
-
-        Args:
-            db_name (str): Название базы данных для подключения
-        """
-        self.cnx.ping(reconnect=True, attempts=3)
+    def _execute(self, query, params=None):
+        conn = self.cnx_pool.get_connection()
         try:
-            self.cursor.execute(f"USE {db_name}")
-        except mysql.connector.Error as err:
-            if err.errno == mysql.connector.errorcode.ER_BAD_DB_ERROR:
-                self.create_db(db_name)
-            else:
-                raise
+            with conn.cursor() as cursor:
+                cursor.execute(query, params)
+                if cursor.with_rows:
+                    return cursor.fetchall()  # Возвращаем результат запроса
+                else:
+                    conn.commit()  # Явное подтверждение для не-SELECT операций
+                    return {
+                        'rowcount': cursor.rowcount,
+                        'lastrowid': cursor.lastrowid
+                    }
+        finally:
+            conn.close()
 
-    def create_db(self, db_name: str) -> None:
+    def _initialize_database(self, db_name: str) -> None:
         """
         Создает новую базу данных и все необходимые таблицы:
         - devices (устройства)
@@ -54,11 +64,7 @@ class DBMS_worker:
 
         Также создает триггеры для автоматического сохранения истории изменений.
         """
-        self.cnx.ping(reconnect=True, attempts=3)
-        self.cursor.execute(f"CREATE DATABASE IF NOT EXISTS {db_name}")
-        self.cursor.execute(f"USE {db_name}")
-
-        self.cursor.execute(
+        self._execute(
             """
             CREATE TABLE IF NOT EXISTS sectors (
                 sector_id INTEGER NOT NULL AUTO_INCREMENT,
@@ -69,7 +75,7 @@ class DBMS_worker:
             """
         )
 
-        self.cursor.execute(
+        self._execute(
             """
             CREATE TABLE IF NOT EXISTS devices (
                 device_id INTEGER NOT NULL AUTO_INCREMENT,
@@ -83,7 +89,7 @@ class DBMS_worker:
         """
         )
 
-        self.cursor.execute(
+        self._execute(
             """
             CREATE TABLE IF NOT EXISTS actual_data (
                 data_id INTEGER NOT NULL AUTO_INCREMENT,
@@ -100,7 +106,7 @@ class DBMS_worker:
         """
         )
 
-        self.cursor.execute(
+        self._execute(
             """
             CREATE TABLE IF NOT EXISTS data_history (
                 data_id INTEGER NOT NULL AUTO_INCREMENT,
@@ -116,7 +122,7 @@ class DBMS_worker:
         """
         )
 
-        self.cursor.execute(
+        self._execute(
             """
             CREATE TABLE IF NOT EXISTS rules (
                 rule_id INTEGER NOT NULL AUTO_INCREMENT,
@@ -137,7 +143,7 @@ class DBMS_worker:
         """
         )
 
-        self.cursor.execute(
+        self._execute(
             """
         CREATE TABLE IF NOT EXISTS users (
             user_id INTEGER NOT NULL AUTO_INCREMENT,
@@ -149,7 +155,7 @@ class DBMS_worker:
         """
         )
 
-        self.cursor.execute(
+        self._execute(
             """
             CREATE TRIGGER IF NOT EXISTS after_actual_data_insert
             AFTER INSERT ON actual_data
@@ -169,7 +175,7 @@ class DBMS_worker:
         """
         )
 
-        self.cursor.execute(
+        self._execute(
             """
             CREATE TRIGGER IF NOT EXISTS after_actual_data_update
             AFTER UPDATE ON actual_data
@@ -201,20 +207,11 @@ class DBMS_worker:
         Returns:
             int | None: ID устройства или None если не найдено
         """
-        self.cnx.ping(reconnect=True, attempts=3)
-        self.cursor.execute(
-            """
-            SELECT device_id
-            FROM devices
-            WHERE device_uuid = %s
-            """,
-            (device_uuid,),
+        result = self._execute(
+            "SELECT device_id FROM devices WHERE device_uuid = %s",
+            (device_uuid,)
         )
-        query_result = self.cursor.fetchone()
-        if query_result:
-            return query_result[0]
-        else:
-            return None
+        return result[0][0] if result else None
 
     def update_device_communication_timestamp(self, device_uuid: str) -> None:
         """
@@ -223,8 +220,7 @@ class DBMS_worker:
         Args:
             device_uuid (str): Уникальный идентификатор устройства
         """
-        self.cnx.ping(reconnect=True, attempts=3)
-        self.cursor.execute(
+        self._execute(
             """
             UPDATE devices
             SET device_last_communication = CURRENT_TIMESTAMP
@@ -245,9 +241,8 @@ class DBMS_worker:
         Returns:
             bool: True при успешном добавлении
         """
-        self.cnx.ping(reconnect=True, attempts=3)
         try:
-            self.cursor.execute(
+            self._execute(
                 """
                 INSERT INTO devices (device_uuid, device_name, sector_id)
                 VALUES (%s, %s, %s)
@@ -268,16 +263,14 @@ class DBMS_worker:
         Returns:
             bool: True при успешном удалении
         """
-        self.cnx.ping(reconnect=True, attempts=3)
         try:
-            self.cursor.execute(
+            return self._execute(
                 """
                 DELETE FROM devices 
                 WHERE device_id = %s
                 """,
                 (device_id,),
-            )
-            return self.cursor.rowcount > 0
+            ).rowcount > 0
         except mysql.connector.Error as e:
             return False
 
@@ -292,29 +285,25 @@ class DBMS_worker:
         Returns:
             bool: True при успешном обновлении
         """
-        self.cnx.ping(reconnect=True, attempts=3)
         try:
-            # Проверяем существование сектора
-            self.cursor.execute(
+            if not self._execute(
                 """
                 SELECT sector_id 
                 FROM sectors 
                 WHERE sector_id = %s
                 """,
                 (sector_id,),
-            )
-            if not self.cursor.fetchone():
+            ):
                 return False
 
-            self.cursor.execute(
+            return self._execute(
                 """
                 UPDATE devices 
                 SET sector_id = %s 
                 WHERE device_id = %s
                 """,
                 (sector_id, device_id),
-            )
-            return self.cursor.rowcount > 0
+            ).rowcount > 0
         except mysql.connector.Error as e:
             return False
 
@@ -328,17 +317,15 @@ class DBMS_worker:
         Returns:
             bool: True при успешном обновлении
         """
-        self.cnx.ping(reconnect=True, attempts=3)
         try:
-            self.cursor.execute(
+            return self._execute(
                 """
                 UPDATE devices 
                 SET sector_id = NULL 
                 WHERE device_id = %s
                 """,
                 (device_id,),
-            )
-            return self.cursor.rowcount > 0
+            ).rowcount > 0
         except mysql.connector.Error as e:
             return False
 
@@ -353,16 +340,12 @@ class DBMS_worker:
         Returns:
             int | None: ID созданного сектора или None при ошибке
         """
-        self.cnx.ping(reconnect=True, attempts=3)
         try:
-            self.cursor.execute(
-                """
-                INSERT INTO sectors (name, description)
-                VALUES (%s, %s)
-                """,
-                (name, description),
+            result = self._execute(
+                "INSERT INTO sectors (name, description) VALUES (%s, %s)",
+                (name, description)
             )
-            return self.cursor.lastrowid
+            return result['lastrowid']
         except mysql.connector.Error as e:
             print(f"[Ошибка] Не удалось создать сектор: {e}")
             return None
@@ -377,12 +360,12 @@ class DBMS_worker:
         Returns:
             bool: True если сектор был удален, False если не существовал
         """
-        self.cnx.ping(reconnect=True, attempts=3)
         try:
-            self.cursor.execute(
-                "DELETE FROM sectors WHERE sector_id = %s", (sector_id,)
+            result = self._execute(
+                "DELETE FROM sectors WHERE sector_id = %s", 
+                (sector_id,)
             )
-            return self.cursor.rowcount > 0
+            return result['rowcount'] > 0
         except mysql.connector.Error as e:
             print(f"[Ошибка] Не удалось удалить сектор {sector_id}: {e}")
             return False
@@ -399,29 +382,32 @@ class DBMS_worker:
         Returns:
             bool: True при успешном обновлении
         """
-        self.cnx.ping(reconnect=True, attempts=3)
         device_id = self.get_device_id(device_uuid)
         if not device_id or not data:
             return False
 
         try:
             values = [(device_id, param, value) for param, value in data.items()]
-
-            self.cursor.executemany(
-                """
-                INSERT INTO actual_data 
-                    (data_device_id, data_name, data_value)
-                VALUES (%s, %s, %s)
-                ON DUPLICATE KEY UPDATE
-                    data_value = VALUES(data_value),
-                    data_timestamp = NOW()
-                """,
-                values,
-            )
-            return True
+            conn = self.cnx_pool.get_connection()
+            with conn.cursor() as cursor:
+                cursor.executemany(
+                    """
+                    INSERT INTO actual_data 
+                        (data_device_id, data_name, data_value)
+                    VALUES (%s, %s, %s)
+                    ON DUPLICATE KEY UPDATE
+                        data_value = VALUES(data_value),
+                        data_timestamp = NOW()
+                    """,
+                    values
+                )
+                conn.commit()
+                return True
         except mysql.connector.Error as e:
             print(f"Ошибка пакетного обновления: {e}")
             return False
+        finally:
+            conn.close()
 
     def get_actual_data(
         self, device_uuid: str, parameter_name: str = None
@@ -437,7 +423,6 @@ class DBMS_worker:
             dict: {parameter_name: {'value': int, 'timestamp': datetime}}
             None: Если устройство не найдено
         """
-        self.cnx.ping(reconnect=True, attempts=3)
         device_id = self.get_device_id(device_uuid)
         if not device_id:
             return None
@@ -454,8 +439,7 @@ class DBMS_worker:
                 query += " AND data_name = %s"
                 params.append(parameter_name)
 
-            self.cursor.execute(query, params)
-            results = self.cursor.fetchall()
+            results = self._execute(query, params)
 
             return {row[0]: {"value": row[1], "timestamp": row[2]} for row in results}
         except mysql.connector.Error as e:
@@ -486,7 +470,6 @@ class DBMS_worker:
         Returns:
             int | None: ID созданного правила
         """
-        self.cnx.ping(reconnect=True, attempts=3)
         try:
             source_device_id = self.get_device_id(source_device_uuid)
             target_device_id = self.get_device_id(target_device_uuid)
@@ -494,7 +477,7 @@ class DBMS_worker:
             if not source_device_id or not target_device_id:
                 return None
 
-            self.cursor.execute(
+            data_row = self._execute(
                 """
                 SELECT data_id 
                 FROM actual_data 
@@ -503,11 +486,10 @@ class DBMS_worker:
                 """,
                 (source_device_id, data_name),
             )
-            data_row = self.cursor.fetchone()
             if not data_row:
                 return None
 
-            self.cursor.execute(
+            return self._execute(
                 """
                 INSERT INTO rules (
                     rule_data_id,
@@ -518,8 +500,7 @@ class DBMS_worker:
                 ) VALUES (%s, %s, %s, %s, %s)
                 """,
                 (data_row[0], condition, threshold, target_device_id, message),
-            )
-            return self.cursor.lastrowid
+            ).lastrowid
 
         except Exception as e:
             return None
@@ -543,13 +524,12 @@ class DBMS_worker:
                 "is_active": bool
             }
         """
-        self.cnx.ping(reconnect=True, attempts=3)
         target_device_id = self.get_device_id(target_device_uuid)
         if not target_device_id:
             return []
 
         try:
-            self.cursor.execute(
+            result = self._execute(
                 """
                 SELECT 
                     r.rule_id,
@@ -564,9 +544,8 @@ class DBMS_worker:
                 JOIN devices d ON a.data_device_id = d.device_id
                 WHERE r.rule_device_id = %s
                 """,
-                (target_device_id,),
+                (target_device_id,)
             )
-
             return [
                 {
                     "rule_id": row[0],
@@ -577,7 +556,7 @@ class DBMS_worker:
                     "message": row[5],
                     "is_active": row[6],
                 }
-                for row in self.cursor.fetchall()
+                for row in result
             ]
         except Exception as e:
             return []
@@ -592,9 +571,7 @@ class DBMS_worker:
         Returns:
             bool: True если правило было удалено
         """
-        self.cnx.ping(reconnect=True, attempts=3)
         try:
-            self.cursor.execute("DELETE FROM rules WHERE rule_id = %s", (rule_id,))
-            return self.cursor.rowcount > 0
+            return self._execute("DELETE FROM rules WHERE rule_id = %s", (rule_id,)).rowcount > 0
         except Exception as e:
             return False

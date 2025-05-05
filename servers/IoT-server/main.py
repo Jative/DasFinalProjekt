@@ -40,6 +40,7 @@ class Server:
         self.connections = []
         self.db_worker = DBMS_worker("localhost", "root", "123", "GreenHouseLocal")
         self.running = False
+        self.lock = threading.Lock()
 
     @staticmethod
     def print_with_time(*args, **kwargs) -> None:
@@ -81,9 +82,20 @@ class Server:
             JSONDecodeError: При получении некорректных данных
             ConnectionResetError: При обрыве соединения
         """
-        data_length = int.from_bytes(conn.recv(4), "big")
-        encrypted_data = conn.recv(data_length)
-        return json.loads(decrypt(encrypted_data))
+        try:
+            raw_length = conn.recv(4)
+            if not raw_length:
+                raise ConnectionError("Соединение закрыто")
+            data_length = int.from_bytes(raw_length, "big")
+            encrypted_data = b''
+            while len(encrypted_data) < data_length:
+                packet = conn.recv(data_length - len(encrypted_data))
+                if not packet:
+                    raise ConnectionError("Не удалось прочитать все данные")
+                encrypted_data += packet
+            return json.loads(decrypt(encrypted_data))
+        except Exception as e:
+            raise
 
     def send_data(self, conn: socket.socket, data: object) -> None:
         """
@@ -259,6 +271,9 @@ class Server:
             self.print_as_device(device_name, device_uuid, f"Ошибка: {str(e)}")
         finally:
             conn.close()
+            with self.lock:
+                if conn in self.connections:
+                    self.connections.remove(conn)
             self.print_as_device(device_name, device_uuid, "Отключен")
 
     def start(self) -> None:
@@ -281,7 +296,8 @@ class Server:
         try:
             while self.running:
                 conn, addr = self.sock.accept()
-                self.connections.append(conn)
+                with self.lock:
+                    self.connections.append(conn)
                 threading.Thread(
                     target=self.handle_connection, args=(conn, addr), daemon=True
                 ).start()
@@ -299,11 +315,13 @@ class Server:
             4. Выводит статус завершения
         """
         self.running = False
-        for conn in self.connections:
-            try:
-                conn.close()
-            except Exception:
-                pass
+        with self.lock:
+            for conn in self.connections:
+                try:
+                    conn.close()
+                except Exception:
+                    pass
+            self.connections.clear()
         self.sock.close()
         self.print_with_time("Сервер остановлен")
 
