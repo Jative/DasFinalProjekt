@@ -38,7 +38,7 @@ def login_required(f):
             return redirect(url_for("login"))
 
         email = session.get("user_email")
-        if not email or not check_subscription(email):
+        if not email or not check_subscription(email).get("active", False):
             session.clear()
             flash("Доступ запрещен: неактивная подписка или ошибка проверки", "error")
             return redirect(url_for("login"))
@@ -82,12 +82,15 @@ def login():
 
         if not check_password_hash(user["password_hash"], password):
             return render_template("login.html", error="Неверный пароль")
+        
+        subscription = check_subscription(email)
 
-        if not check_subscription(email):
+        if not subscription.get("active", False):
             return render_template("login.html", error="Подписка не активна")
 
         session["logged_in"] = True
         session["user_email"] = email
+        session["sub_until"] = subscription.get("until").split("T")[0].replace("-", ".")
         return redirect(url_for("dashboard"))
 
     return render_template("login.html")
@@ -467,11 +470,11 @@ def check_subscription(email: str) -> bool:
                 response = sock.recv(response_length)
 
                 decrypted = decrypt(response)
-                return json.loads(decrypted).get("active", False)
+                return json.loads(decrypted)
 
     except (socket.timeout, ConnectionRefusedError, Exception) as e:
         app.logger.error(f"Ошибка проверки подписки: {str(e)}")
-        return False
+        return {"active": False, "sub_until": None}
 
 
 @app.template_filter("get_condition_symbol")

@@ -19,6 +19,7 @@ body {
 }
 
 nav {
+    display: flex;
     background: var(--main-color);
     padding: 1rem 2rem;
     box-shadow: 0 2px 5px rgba(0,0,0,0.1);
@@ -31,6 +32,12 @@ nav a {
     padding: 0.5rem 1rem;
     border-radius: 4px;
     transition: background 0.3s;
+}
+
+nav p {
+    color: gray;
+    margin-left: auto;
+    padding: 0.5rem 1rem;
 }
 
 nav a:hover {
