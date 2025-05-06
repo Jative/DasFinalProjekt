@@ -83,10 +83,9 @@
                 })
                 .then(data => {
                     if (data.success) {
-                        // Обновляем карточку устройства
                         const card = this.closest('.device-card');
                         card.dataset.sector = sectorId;
-                        location.reload();  // Или динамическое обновление интерфейса
+                        location.reload();
                     } else {
                         alert('Ошибка: ' + data.error);
                     }
@@ -117,14 +116,12 @@
     </script>
 </div>
 <style>
-    /* Основной контейнер */
     .devices {
         max-width: 1200px;
         margin: 0 auto;
         padding: 0 15px;
     }
     
-    /* Сетка карточек */
     .device-grid {
         display: grid;
         grid-template-columns: repeat(2, minmax(400px, 1fr));
@@ -132,7 +129,6 @@
         padding: 15px 0;
     }
     
-    /* Карточка устройства */
     .device-card {
         position: relative;
         background: white;
@@ -141,10 +137,9 @@
         box-shadow: 0 2px 6px rgba(0,0,0,0.1);
         min-height: 180px;
         border-left: 4px solid var(--main-color);
-        margin-left: 4px; /* Компенсация для акцентной линии */
+        margin-left: 4px;
     }
     
-    /* Заголовок карточки */
     .device-header {
         display: flex;
         justify-content: space-between;
@@ -170,7 +165,6 @@
         align-self: flex-start;
     }
     
-    /* Блок информации */
     .device-info {
         display: grid;
         gap: 12px;
