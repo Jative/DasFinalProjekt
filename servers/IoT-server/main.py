@@ -221,7 +221,7 @@ class Server:
                     parts = rule["message"].split("~")
                     command = parts[0]
                     if len(parts) > 1 and parts[1].isdigit():
-                        custom_delay = int(parts[1])  # Обновляем задержку
+                        custom_delay = int(parts[1])
                     commands.append(command)
 
             final_delay = custom_delay if custom_delay else SEND_STATE_DELAY

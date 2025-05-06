@@ -1,163 +1,198 @@
 import mysql.connector
-
+from mysql.connector import pooling
 from random import randint
 
 
 class DBMS_worker:
     def __init__(self, host: str, user: str, password: str, db_name: str):
         """
-        Инициализирует подключение к MySQL и целевую базу данных.
-
-        Args:
-            host: Хост MySQL сервера
-            user: Имя пользователя
-            password: Пароль пользователя
-            db_name: Название базы данных
-
-        Attributes:
-            cnx: Объект соединения с MySQL
-            cursor: Курсор для выполнения SQL-запросов
-            created (bool): Флаг успешного создания подключения
-            error (str): Сообщение об ошибке при неудачной инициализации
+        Инициализирует подключение с проверкой существования БД
         """
+        self.db_name = db_name
+        
         try:
-            self.cnx = mysql.connector.connect(
-                host=host, user=user, password=password, autocommit=True
+            # Этап 1: Временное подключение без указания БД
+            temp_cnx = mysql.connector.connect(
+                host=host,
+                user=user,
+                password=password,
+                autocommit=True
             )
-            self.cursor = self.cnx.cursor()
-            self.connect_to_db(db_name)
+            
+            # Этап 2: Проверка и создание всей структуры
+            self._check_database(temp_cnx)
+            temp_cnx.close()
+
+            # Этап 3: Инициализация пула для рабочей БД
+            self.cnx_pool = pooling.MySQLConnectionPool(
+                pool_name="device_pool",
+                pool_size=20,
+                host=host,
+                user=user,
+                password=password,
+                database=db_name,
+                autocommit=True
+            )
+            
             self.created = True
+        
         except Exception as e:
             self.created = False
             self.error = str(e)
 
-    def connect_to_db(self, db_name: str) -> None:
+    def _check_database(self, temp_cnx):
         """
-        Подключается к указанной базе данных. Если база не существует - создает её
-        и заполняет тестовыми данными.
-
-        Args:
-            db_name: Название базы данных
-
-        Raises:
-            mysql.connector.Error: Ошибки MySQL кроме отсутствия базы данных
+        Проверяет существование БД и создает при необходимости
         """
+        cursor = temp_cnx.cursor()
         try:
-            self.cursor.execute(f"USE {db_name}")
+            cursor.execute(f"USE {self.db_name}")
         except mysql.connector.Error as err:
             if err.errno == errorcode.ER_BAD_DB_ERROR:
-                self.create_db(db_name)
-                self.insert_test_values()
+                self._create_database(temp_cnx)
+                self._create_tables(temp_cnx)
+                self._insert_test_data(temp_cnx)
             else:
                 raise
+        finally:
+            cursor.close()
 
-    def create_db(self, db_name: str) -> None:
-        """
-        Создает новую базу данных и структуру таблиц.
+    def _create_database(self, temp_cnx):
+        cursor = temp_cnx.cursor()
+        try:
+            cursor.execute(f"CREATE DATABASE {self.db_name}")
+        finally:
+            cursor.close()
 
-        Args:
-            db_name: Название создаваемой базы данных
+    def _create_tables(self, temp_cnx):
+        cursor = temp_cnx.cursor()
+        try:
+            cursor.execute(f"USE {self.db_name}")
+            cursor.execute("""
+                CREATE TABLE indicators (
+                    indicator_id INT NOT NULL AUTO_INCREMENT,
+                    indicator_sector INT,
+                    indicator_name VARCHAR(255),
+                    indicator_value INT,
+                    PRIMARY KEY (indicator_id)
+                )
+            """)
+        finally:
+            cursor.close()
 
-        Создает:
-            - Базу данных с указанным именем
-            - Таблицу indicators с полями:
-                * indicator_id (первичный ключ)
-                * indicator_sector (INT)
-                * indicator_name (VARCHAR(255))
-                * indicator_value (INT)
-        """
-        self.cursor.execute(f"CREATE DATABASE IF NOT EXISTS {db_name}")
-        self.cursor.execute(f"USE {db_name}")
-
-        self.cursor.execute(
-            """
-            CREATE TABLE IF NOT EXISTS indicators (
-                indicator_id INT NOT NULL AUTO_INCREMENT,
-                indicator_sector INT,
-                indicator_name VARCHAR(255),
-                indicator_value INT,
-                PRIMARY KEY (indicator_id)
+    def _insert_test_data(self, temp_cnx):
+        cursor = temp_cnx.cursor()
+        try:
+            params = ("temperature", "humidity", "brightness")
+            allowed_values = ((22, 28), (60, 90), (0, 100))
+            
+            data = [
+                (i, param, randint(*allowed_values[j]))
+                for i in range(2)
+                for j, param in enumerate(params)
+            ]
+            
+            cursor.executemany(
+                "INSERT INTO indicators (indicator_sector, indicator_name, indicator_value) VALUES (%s, %s, %s)",
+                data
             )
+            temp_cnx.commit()
+        finally:
+            cursor.close()
+
+    def _execute(self, query, params=None, multi=False):
         """
-        )
+        Универсальный метод выполнения SQL-запросов
+        Возвращает словарь с результатами:
+        {
+            'success': bool,
+            'results': list,    # Для SELECT
+            'rowcount': int,    # Для INSERT/UPDATE/DELETE
+            'lastrowid': int    # Для INSERT
+        }
+        """
+        conn = self.cnx_pool.get_connection()
+        result = {'success': False}
+        try:
+            with conn.cursor() as cursor:
+                cursor.execute(query, params, multi)
+                
+                if cursor.with_rows:
+                    result['results'] = cursor.fetchall()
+                else:
+                    result['rowcount'] = cursor.rowcount
+                    result['lastrowid'] = cursor.lastrowid
+                
+                result['success'] = True
+        except Exception as e:
+            result['error'] = str(e)
+        finally:
+            conn.close()
+        return result
 
     def insert_test_values(self) -> None:
         """
-        Заполняет таблицу indicators тестовыми данными:
-        - 2 сектора (0 и 1)
-        - 3 параметра: temperature, humidity, brightness
-        - Случайные значения в заданных диапазонах
+        Заполняет таблицу тестовыми данными с использованием пула соединений
         """
         params = ("temperature", "humidity", "brightness")
         allowed_values = ((22, 28), (60, 90), (0, 100))
+        
+        data = []
         for i in range(2):
             for j in range(len(params)):
-                self.cursor.execute(
+                data.append((
+                    i,
+                    params[j],
+                    randint(*allowed_values[j])
+                ))
+
+        conn = self.cnx_pool.get_connection()
+        try:
+            with conn.cursor() as cursor:
+                cursor.executemany(
                     """
                     INSERT INTO indicators (
                         indicator_sector,
                         indicator_name,
                         indicator_value
-                    )
-                    VALUES (%s, %s, %s)
-                """,
-                    (i, params[j], randint(*allowed_values[j])),
+                    ) VALUES (%s, %s, %s)
+                    """,
+                    data
                 )
+            conn.commit()
+        except Exception as e:
+            conn.rollback()
+            raise
+        finally:
+            conn.close()
 
     def get_value(self, sector: int, name: str) -> int:
         """
-        Получает текущее значение показателя из базы данных.
-
-        Args:
-            sector: Номер сектора теплицы
-            name: Название показателя
-
-        Returns:
-            int: Значение показателя или 0 при ошибке
+        Получает значение показателя из базы данных
         """
-        try:
-            self.cursor.execute(
-                """
-                    SELECT indicator_value
-                    FROM indicators
-                    WHERE indicator_sector = %s AND indicator_name = %s
-                """,
-                (sector, name),
-            )
-            cursor_result = self.cursor.fetchone()
-            if cursor_result:
-                return cursor_result[0]
-            else:
-                raise
-        except:
-            return 0
+        result = self._execute(
+            """
+            SELECT indicator_value
+            FROM indicators
+            WHERE indicator_sector = %s AND indicator_name = %s
+            """,
+            (sector, name)
+        )
+        
+        if result['success'] and result.get('results'):
+            return result['results'][0][0]
+        return 0
 
-    def change_value(
-        self,
-        sector: int,
-        name: str,
-        value: int,
-    ) -> bool:
+    def change_value(self, sector: int, name: str, value: int) -> bool:
         """
-        Изменяет значение показателя в базе данных.
-
-        Args:
-            sector: Номер сектора
-            name: Название показателя
-            value: Величина изменения (может быть отрицательной)
-
-        Returns:
-            bool: True при успешном обновлении
+        Обновляет значение показателя в базе данных
         """
-        try:
-            self.cursor.execute(
-                """
-                UPDATE indicators
-                SET indicator_value = indicator_value + %s
-                WHERE indicator_sector = %s AND indicator_name = %s
-                """,
-                (value, sector, name),
-            )
-            return True
-        except:
-            return False
+        result = self._execute(
+            """
+            UPDATE indicators
+            SET indicator_value = indicator_value + %s
+            WHERE indicator_sector = %s AND indicator_name = %s
+            """,
+            (value, sector, name))
+        
+        return result['success'] and result.get('rowcount', 0) > 0

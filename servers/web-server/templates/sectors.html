@@ -15,7 +15,6 @@
     </div>
     <h1>Управление секторами</h1>
 
-    <!-- Форма добавления -->
     <div class="card editor-card">
         <h2>Добавить новый сектор</h2>
         <form method="POST" action="{{ url_for('manage_sectors') }}">
@@ -42,7 +41,6 @@
         </form>
     </div>
 
-    <!-- Список секторов -->
     <div class="sectors-list">
         <h2 style="margin-top: 20px;">Секторы</h2>
         {% for sector in sectors %}
@@ -104,7 +102,6 @@
 </div>
 
 <style>
-/* Унифицированные стили */
 .sectors-management {
     max-width: 1200px;
     margin: 2rem auto;
@@ -116,7 +113,6 @@
     padding: 0 1rem;
 }
 
-/* Карточка сектора (как на главной) */
 .sector-card {
     background: white;
     border-radius: 12px;
@@ -135,7 +131,6 @@
     background: var(--main-color);
 }
 
-/* Верхняя часть карточки */
 .sector-main {
     display: grid;
     grid-template-columns: 1fr auto;
@@ -169,7 +164,6 @@
     color: var(--main-color);
 }
 
-/* Форма редактирования */
 .edit-form {
     padding: 1.5rem;
 }
@@ -189,7 +183,6 @@
     margin-top: 0.5rem;
 }
 
-/* Кнопки действий */
 .sector-actions {
     display: flex;
     gap: 0.5rem;
@@ -203,17 +196,16 @@
     border: 1px solid #ddd;
     border-radius: 4px;
     font-size: 1rem;
-    min-height: 48px; /* Единая минимальная высота */
+    min-height: 48px;
     line-height: 1.5;
     box-sizing: border-box;
 }
 
 .form-group textarea {
-    resize: vertical; /* Разрешаем вертикальное изменение размера */
-    overflow-y: auto; /* Добавляем скролл при необходимости */
+    resize: vertical;
+    overflow-y: auto;
 }
 
-/* Адаптивность */
 @media (max-width: 768px) {
     .sector-main {
         grid-template-columns: 1fr;
@@ -230,7 +222,6 @@
 </style>
 
 <style>
-    /* Контейнер для сообщений */
     .flash-container {
         position: fixed;
         top: 20px;
@@ -243,7 +234,6 @@
         width: 90%;
     }
 
-    /* Стили сообщений */
     .flash {
         position: relative;
         padding: 15px 20px;
@@ -269,7 +259,6 @@
         color: #dc3545;
     }
 
-    /* Анимации */
     @keyframes slideIn {
         to {
             opacity: 1;
@@ -284,7 +273,6 @@
         }
     }
 
-    /* Иконка закрытия */
     .flash-close {
         margin-left: 15px;
         cursor: pointer;
@@ -307,7 +295,6 @@
 </style>
     
     <script>
-    // Автоматическое скрытие сообщений
     document.querySelectorAll('.flash').forEach(flash => {
         setTimeout(() => {
             flash.style.transform = 'translateY(-20px)';

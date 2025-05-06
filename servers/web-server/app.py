@@ -32,6 +32,18 @@ if not db.created:
 
 
 def login_required(f):
+    """
+    Декоратор для проверки аутентификации и активной подписки
+    
+    Args:
+        f (function): Оборачиваемая функция
+        
+    Returns:
+        function: Декорированная функция с проверкой доступа
+        
+    Raises:
+        Redirect: Перенаправление на login при отсутствии доступа
+    """
     @wraps(f)
     def decorated_function(*args, **kwargs):
         if not session.get("logged_in"):
@@ -50,7 +62,16 @@ def login_required(f):
 
 @app.template_filter("datetime_format")
 def datetime_format(value, format="%d.%m.%Y %H:%M"):
-    """Фильтр для форматирования даты"""
+    """
+    Фильтр для форматирования даты в шаблонах Jinja2
+    
+    Args:
+        value (int/datetime): Временная метка или объект datetime
+        format (str): Строка формата даты
+        
+    Returns:
+        str: Отформатированная дата или пустая строка при ошибке
+    """
     if value is None:
         return ""
 
@@ -67,11 +88,23 @@ def datetime_format(value, format="%d.%m.%Y %H:%M"):
 @app.route("/", methods=["GET"])
 @login_required
 def index():
+    """Главная страница с перенаправлением на dashboard"""
     return redirect(url_for("dashboard"))
 
 
 @app.route("/login", methods=["GET", "POST"])
 def login():
+    """
+    Обработка входа пользователя
+    
+    Methods:
+        POST: Проверка учетных данных и подписки
+        GET: Отображение формы входа
+        
+    Returns:
+        render_template: Страница входа с ошибкой при необходимости
+        redirect: Перенаправление на dashboard при успешной аутентификации
+    """
     if request.method == "POST":
         email = request.form.get("email")
         password = request.form.get("password")
@@ -99,6 +132,12 @@ def login():
 @app.route("/logout")
 @login_required
 def logout():
+    """
+    Завершение сессии пользователя
+    
+    Returns:
+        redirect: Перенаправление на страницу входа
+    """
     session.clear()
     return redirect(url_for("login"))
 
@@ -106,6 +145,16 @@ def logout():
 @app.route("/dashboard")
 @login_required
 def dashboard():
+    """
+    Главная информационная панель с метриками
+    
+    Returns:
+        render_template: Страница dashboard с данными секторов
+        str: Сообщение об ошибке при проблемах с БД
+        
+    Raises:
+        500: При внутренних ошибках сервера
+    """
     try:
         db.cursor.execute("SELECT COUNT(*) FROM devices")
         devices_total = db.cursor.fetchone()[0]
@@ -163,7 +212,17 @@ def dashboard():
 
 
 def get_sectors_with_stats():
-    """Возвращает секторы с дополнительной статистикой"""
+    """
+    Получение списка секторов с расширенной статистикой
+    
+    Returns:
+        list[dict]: Список секторов с полями:
+            - sector_id (int)
+            - name (str)
+            - description (str)
+            - device_count (int)
+            - last_activity (datetime)
+    """
     try:
         db.cursor.execute(
             """
@@ -185,6 +244,20 @@ def get_sectors_with_stats():
 @app.route("/sectors", methods=["GET", "POST"])
 @login_required
 def manage_sectors():
+    """
+    Управление секторами теплицы
+    
+    Methods:
+        POST: Создание нового сектора
+        GET: Отображение списка секторов
+        
+    Returns:
+        render_template: Страница управления секторами
+        redirect: Обновление страницы после создания сектора
+        
+    Raises:
+        DatabaseError: При ошибках работы с БД
+    """
     if request.method == "POST":
         name = request.form.get("name", "").strip()
         description = request.form.get("description", "").strip()
@@ -240,6 +313,18 @@ def manage_sectors():
 @app.route("/sectors/update/<int:sector_id>", methods=["POST"])
 @login_required
 def update_sector(sector_id):
+    """
+    Обновление информации о секторе
+    
+    Args:
+        sector_id (int): Идентификатор обновляемого сектора
+        
+    Returns:
+        redirect: Перенаправление на страницу управления секторами
+        
+    Raises:
+        DatabaseError: При ошибках валидации или работы с БД
+    """
     new_name = request.form.get("name").strip()
     new_description = request.form.get("description").strip()
 
@@ -271,6 +356,13 @@ def update_sector(sector_id):
 @app.route("/update-device-sector", methods=["POST"])
 @login_required
 def update_device_sector():
+    """
+    Обновление привязки устройства к сектору (AJAX)
+    
+    Returns:
+        jsonify: Результат операции в формате JSON:
+            {'success': bool, 'error': str (опционально)}
+    """
     try:
         data = request.get_json()
         device_id = int(data["device_id"])
@@ -291,6 +383,15 @@ def update_device_sector():
 @app.route("/sectors/delete/<int:sector_id>", methods=["POST"])
 @login_required
 def delete_sector(sector_id):
+    """
+    Удаление сектора
+    
+    Args:
+        sector_id (int): Идентификатор удаляемого сектора
+        
+    Returns:
+        redirect: Перенаправление на страницу управления секторами
+    """
     db.remove_sector(sector_id)
     return redirect(url_for("manage_sectors"))
 
@@ -298,6 +399,12 @@ def delete_sector(sector_id):
 @app.route("/devices", methods=["GET", "POST"])
 @login_required
 def manage_devices():
+    """
+    Управление устройствами теплицы
+    
+    Returns:
+        render_template: Страница со списком устройств
+    """
     if request.method == "POST":
         device_id = request.form.get("device_id")
         new_sector_id = request.form.get("sector_id")
@@ -333,6 +440,15 @@ def manage_devices():
 @app.route("/devices/delete/<int:device_id>", methods=["POST"])
 @login_required
 def delete_device(device_id):
+    """
+    Удаление устройства
+    
+    Args:
+        device_id (int): Идентификатор удаляемого устройства
+        
+    Returns:
+        redirect: Перенаправление на страницу управления устройствами
+    """
     try:
         success = db.remove_device(device_id)
         if success:
@@ -347,6 +463,12 @@ def delete_device(device_id):
 @app.route("/rules", methods=["GET", "POST"])
 @login_required
 def manage_rules():
+    """
+    Управление правилами автоматизации
+    
+    Returns:
+        render_template: Страница с таблицей правил и формами управления
+    """
     if request.method == "POST":
         data_id = request.form.get("data_id")
         condition = request.form.get("condition")
@@ -432,6 +554,15 @@ def manage_rules():
 @app.route("/rules/toggle/<int:rule_id>", methods=["POST"])
 @login_required
 def toggle_rule(rule_id):
+    """
+    Активация/деактивация правила
+    
+    Args:
+        rule_id (int): Идентификатор правила
+        
+    Returns:
+        redirect: Перенаправление на страницу управления правилами
+    """
     db.cursor.execute(
         """
         UPDATE rules 
@@ -446,12 +577,30 @@ def toggle_rule(rule_id):
 @app.route("/rules/delete/<int:rule_id>", methods=["POST"])
 @login_required
 def delete_rule(rule_id):
+    """
+    Удаление правила автоматизации
+    
+    Args:
+        rule_id (int): Идентификатор удаляемого правила
+        
+    Returns:
+        redirect: Перенаправление на страницу управления правилами
+    """
     db.remove_rule(rule_id)
     return redirect(url_for("manage_rules"))
 
 
 def check_subscription(email: str) -> bool:
-    """Проверка подписки через сокет-соединение с удалённым сервером"""
+    """
+    Проверка статуса подписки через удаленный сервер
+    
+    Args:
+        email (str): Email пользователя для проверки
+        
+    Returns:
+        dict: Результат проверки:
+            {'active': bool, 'until': datetime (опционально)}
+    """
     encrypted_data = encrypt(json.dumps({"email": email}))
 
     try:
@@ -480,7 +629,15 @@ def check_subscription(email: str) -> bool:
 
 @app.template_filter("get_condition_symbol")
 def get_condition_symbol(condition: int) -> str:
-    """Преобразует числовой код условия в символ"""
+    """
+    Преобразование кода условия в символ
+    
+    Args:
+        condition (int): Числовой код условия
+        
+    Returns:
+        str: Символьное представление условия
+    """
     symbols = {1: ">", 2: "<", 3: "==", 4: "!="}
     return symbols.get(condition, "UNKNOWN")
 
@@ -488,6 +645,12 @@ def get_condition_symbol(condition: int) -> str:
 @app.route("/history")
 @login_required
 def history():
+    """
+    Отображение исторических данных
+    
+    Returns:
+        render_template: Страница с графиками и фильтрами
+    """
     try:
         db.cursor.execute(
             """
@@ -592,6 +755,16 @@ def history():
 
 
 def validate_credentials(email: str, password: str) -> bool:
+    """
+    Валидация учетных данных пользователя
+    
+    Args:
+        email (str): Email пользователя
+        password (str): Пароль в открытом виде
+        
+    Returns:
+        bool: Результат проверки
+    """
     try:
         db.cursor.execute("SELECT password_hash FROM users WHERE email = %s", (email,))
         result = db.cursor.fetchone()
@@ -605,6 +778,13 @@ def validate_credentials(email: str, password: str) -> bool:
 
 @app.route("/register", methods=["GET", "POST"])
 def register():
+    """
+    Регистрация нового пользователя
+    
+    Returns:
+        render_template: Форма регистрации с сообщениями об ошибках
+        redirect: Перенаправление на вход после успешной регистрации
+    """
     if request.method == "POST":
         email = request.form.get("email")
         password = request.form.get("password")
@@ -622,7 +802,6 @@ def register():
         password_hash = generate_password_hash(password)
 
         if db.add_user(email, password_hash):
-            flash("Регистрация успешна. Теперь войдите в систему.", "success")
             return redirect(url_for("login"))
 
         return render_template("register.html", error="Ошибка регистрации")

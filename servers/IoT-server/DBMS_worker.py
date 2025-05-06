@@ -24,7 +24,7 @@ class DBMS_worker:
             cnx.close()
             self.cnx_pool = mysql.connector.pooling.MySQLConnectionPool(
                 pool_name="gh_pool",
-                pool_size=5,
+                pool_size=20,
                 host=host,
                 user=user,
                 password=password,
