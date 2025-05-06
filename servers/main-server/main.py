@@ -22,7 +22,7 @@ class MainServer:
         try:
             raw_length = conn.recv(4)
             if len(raw_length) != 4:
-                print("Invalid length header")
+                print("Некорректная длина данных")
                 return
 
             data_length = struct.unpack("!I", raw_length)[0]
@@ -31,31 +31,31 @@ class MainServer:
             while len(encrypted_data) < data_length:
                 chunk = conn.recv(min(4096, data_length - len(encrypted_data)))
                 if not chunk:
-                    print("Connection closed prematurely")
+                    print("Соединение разорвано")
                     return
                 encrypted_data.extend(chunk)
 
             try:
                 decrypted = decrypt(bytes(encrypted_data))
             except Exception as e:
-                print(f"Decryption failed: {str(e)}")
+                print(f"Декодирование не удалось: {str(e)}")
                 return
 
             try:
                 request = json.loads(decrypted)
             except json.JSONDecodeError as e:
-                print(f"JSON decode error: {str(e)}")
-                print(f"Raw data: {decrypted}")
+                print(f"Ошибка декодирования JSON: {str(e)}")
+                print(f"Данные: {decrypted}")
                 return
 
             if "email" not in request:
-                print("Missing 'email' in request")
+                print("Не указан 'email' в запросе")
                 return
 
-            print(f"Checking subscription for: {request['email']}")
+            print(f"Проверка подписки для: {request['email']}")
 
             response = self.db.check_subscription(request["email"])
-            print(f"Subscription status: {response}")
+            print(f"Статус подписки: {response}")
 
             response_str = json.dumps(response)
             encrypted_response = encrypt(response_str)

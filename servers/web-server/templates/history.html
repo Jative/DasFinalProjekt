@@ -6,7 +6,6 @@
 <div class="history-container">
     <h1>История измерений</h1>
     
-    <!-- Фильтры -->
     <div class="filters card">
         <form method="GET" class="filter-form">
             <div class="form-row">
@@ -46,13 +45,11 @@
         </form>
     </div>
 
-    <!-- График -->
     <div class="chart-container card">
         {% if sector_data %}
             {% for sector_id, entries in sector_data.items() %}
             <div class="sector-chart">
                 <h4>{{ entries[0].sector_name }}</h4>
-                <!-- Добавляем контейнер с фиксированной высотой -->
                 <div class="chart-wrapper">
                     <canvas id="chart-{{ sector_id }}"></canvas>
                 </div>
@@ -63,7 +60,6 @@
         {% endif %}
     </div>
 
-    <!-- Таблица данных -->
     <div class="data-table card">
         <h3>Последние измерения</h3>
         <table>
@@ -89,24 +85,18 @@
     </div>
 </div>
 
-<!-- Подключение Chart.js -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
     document.addEventListener('DOMContentLoaded', () => {
         const historyData = JSON.parse('{{ history_json|safe }}');
         const colorPalette = ['#1A472A', '#2C5530', '#4CAF50', '#8BC34A', '#CDDC39'];
 
-        // Дебаг
-        console.log('History Data:', historyData);
-
-        // Проверка наличия данных
         if (!historyData || Object.keys(historyData).length === 0) {
             document.querySelector('.chart-container').innerHTML = 
                 '<p class="no-data">Нет данных для выбранных фильтров</p>';
             return;
         }
 
-        // Создание графиков
         Object.entries(historyData).forEach(([sectorId, data], index) => {
             const canvasId = `chart-${sectorId}`;
             const canvas = document.getElementById(canvasId);
@@ -117,7 +107,6 @@
             }
 
             try {
-                // Подготовка данных
                 const labels = data.map(entry => {
                     try {
                         return new Date(entry.timestamp).toLocaleTimeString('ru-RU', {
@@ -234,7 +223,7 @@
     }
 
     .chartjs-render-monitor {
-        animation: none !important; /* Убираем анимацию для стабильности */
+        animation: none !important;
     }
     
     .sector-chart h4 {
