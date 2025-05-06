@@ -6,9 +6,7 @@
     <title>{% block title %}Умная теплица{% endblock %}</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
     <script>
-        // Улучшенная версия скрипта
         (function() {
-            // Сохраняем прокрутку для всех форм
             document.addEventListener('submit', function(e) {
                 if (e.target.tagName.toLowerCase() === 'form') {
                     sessionStorage.setItem('scrollPosition', JSON.stringify({
@@ -18,13 +16,10 @@
                     }));
                 }
             }, false);
-    
-            // Восстанавливаем позицию
             window.addEventListener('load', function() {
                 try {
                     const scrollData = JSON.parse(sessionStorage.getItem('scrollPosition'));
                     
-                    // Проверяем что данные свежие (не старше 3 секунд)
                     if (scrollData && Date.now() - scrollData.timestamp < 3000) {
                         window.scrollTo(scrollData.x, scrollData.y);
                     }
@@ -37,6 +32,15 @@
     </script>
 </head>
 <body>
+    <div class="flash-container">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="flash {{ category }}">{{ message }}</div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+    </div>
     <nav>
         <a href="/">Главная</a>
         <a href="/sectors">Секторы</a>
@@ -49,5 +53,15 @@
     <div class="content">
         {% block content %}{% endblock %}
     </div>
+
+    <script>
+        document.querySelectorAll('.flash').forEach(flash => {
+            setTimeout(() => {
+                flash.style.transform = 'translateY(-20px)';
+                flash.style.opacity = '0';
+                setTimeout(() => flash.remove(), 300);
+            }, 5000);
+        });
+    </script>
 </body>
 </html>

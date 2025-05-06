@@ -4,15 +4,6 @@
 
 {% block content %}
 <div class="sectors-management">
-    <div class="flash-container">
-        {% with messages = get_flashed_messages(with_categories=true) %}
-            {% if messages %}
-                {% for category, message in messages %}
-                    <div class="flash {{ category }}">{{ message }}</div>
-                {% endfor %}
-            {% endif %}
-        {% endwith %}
-    </div>
     <h1>Управление секторами</h1>
 
     <div class="card editor-card">
@@ -220,87 +211,4 @@
     }
 }
 </style>
-
-<style>
-    .flash-container {
-        position: fixed;
-        top: 20px;
-        right: 20px;
-        z-index: 1000;
-        display: flex;
-        flex-direction: column;
-        gap: 10px;
-        max-width: 400px;
-        width: 90%;
-    }
-
-    .flash {
-        position: relative;
-        padding: 15px 20px;
-        border-radius: 8px;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-        opacity: 0;
-        transform: translateY(-20px);
-        animation: slideIn 0.3s ease-out forwards;
-        display: flex;
-        align-items: center;
-        border-left: 4px solid;
-    }
-
-    .flash.success {
-        background: #f5fbf6;
-        border-color: #1A472A;
-        color: #1A472A;
-    }
-
-    .flash.error {
-        background: #fff5f5;
-        border-color: #dc3545;
-        color: #dc3545;
-    }
-
-    @keyframes slideIn {
-        to {
-            opacity: 1;
-            transform: translateY(0);
-        }
-    }
-
-    @keyframes slideOut {
-        to {
-            opacity: 0;
-            transform: translateY(-20px);
-        }
-    }
-
-    .flash-close {
-        margin-left: 15px;
-        cursor: pointer;
-        opacity: 0.7;
-        transition: opacity 0.2s;
-    }
-
-    .flash-close:hover {
-        opacity: 1;
-    }
-
-    @media (max-width: 768px) {
-        .flash-container {
-            top: 10px;
-            right: 10px;
-            left: 10px;
-            width: auto;
-        }
-    }
-</style>
-    
-    <script>
-    document.querySelectorAll('.flash').forEach(flash => {
-        setTimeout(() => {
-            flash.style.transform = 'translateY(-20px)';
-            flash.style.opacity = '0';
-            setTimeout(() => flash.remove(), 300);
-        }, 5000);
-    });
-</script>
 {% endblock %}
