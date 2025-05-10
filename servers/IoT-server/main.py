@@ -183,7 +183,7 @@ class Server:
         try:
             commands = []
             rules = self.db_worker.get_rules_by_target_device(device_uuid)
-            custom_delay = SEND_STATE_DELAY  # Убедитесь, что SEND_STATE_DELAY определен
+            custom_delay = SEND_STATE_DELAY
 
             for rule in rules:
                 if not rule["is_active"]:
@@ -197,7 +197,6 @@ class Server:
                     .get("value", 0)
                 )
 
-                # Проверка условия правила
                 condition_met = False
                 if rule["condition"] == 1:  # >
                     condition_met = current_value > rule["threshold"]
@@ -211,11 +210,9 @@ class Server:
                 if condition_met:
                     parts = rule["message"].split("~")
                     command_str = parts[0]
-                    # Обработка задержки
                     if len(parts) > 1 and parts[1].isdigit():
                         custom_delay = max(custom_delay, int(parts[1]))
                     
-                    # Проверка формата команды
                     if ':' not in command_str:
                         self.print_with_time(f"Правило {rule['rule_id']}: команда '{command_str}' пропущена (нет интенсивности).")
                         continue
@@ -226,7 +223,6 @@ class Server:
                         continue
                     new_intensity = int(intensity_str)
                     
-                    # Поиск существующей команды с тем же именем
                     found_index = None
                     for i, cmd in enumerate(commands):
                         existing_name, sep, existing_intensity = cmd.partition(':')
@@ -235,7 +231,6 @@ class Server:
                             break
                     
                     if found_index is not None:
-                        # Обновляем интенсивность
                         existing_intensity = int(existing_intensity) if existing_intensity.isdigit() else 0
                         updated_intensity = max(existing_intensity, new_intensity)
                         commands[found_index] = f"{command_name}:{updated_intensity}"
