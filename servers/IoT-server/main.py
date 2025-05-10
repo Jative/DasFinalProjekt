@@ -173,27 +173,17 @@ class Server:
         except Exception as e:
             self.print_with_time(f"Ошибка обработки данных: {e}")
 
-    def check_rules(self, device_uuid: str) -> list[str]:
+    def check_rules(self, device_uuid: str) -> tuple[int, list[str]]:
         """
         Проверяет активные правила для устройства и генерирует команды.
 
-        Args:
-            device_uuid (str): UUID целевого устройства-исполнителя
-
         Returns:
-            list[str]: Список команд для выполнения в формате "команда~параметр"
-
-        Logic:
-            1. Получает все правила для устройства из БД
-            2. Для каждого активного правила:
-               - Проверяет текущее значение параметра
-               - Сравнивает с порогом по условию
-               - При выполнении условия добавляет команду
+            tuple[int, list[str]]: Задержка и список команд в формате "команда:интенсивность"
         """
         try:
             commands = []
             rules = self.db_worker.get_rules_by_target_device(device_uuid)
-            custom_delay = None
+            custom_delay = SEND_STATE_DELAY  # Убедитесь, что SEND_STATE_DELAY определен
 
             for rule in rules:
                 if not rule["is_active"]:
@@ -207,6 +197,7 @@ class Server:
                     .get("value", 0)
                 )
 
+                # Проверка условия правила
                 condition_met = False
                 if rule["condition"] == 1:  # >
                     condition_met = current_value > rule["threshold"]
@@ -219,16 +210,42 @@ class Server:
 
                 if condition_met:
                     parts = rule["message"].split("~")
-                    command = parts[0]
+                    command_str = parts[0]
+                    # Обработка задержки
                     if len(parts) > 1 and parts[1].isdigit():
-                        custom_delay = int(parts[1])
-                    commands.append(command)
-
-            final_delay = custom_delay if custom_delay else SEND_STATE_DELAY
-            return (final_delay, commands)
+                        custom_delay = max(custom_delay, int(parts[1]))
+                    
+                    # Проверка формата команды
+                    if ':' not in command_str:
+                        self.print_with_time(f"Правило {rule['rule_id']}: команда '{command_str}' пропущена (нет интенсивности).")
+                        continue
+                    command_name, intensity_str = command_str.split(':', 1)
+                    
+                    if not intensity_str.isdigit():
+                        self.print_with_time(f"Правило {rule['rule_id']}: интенсивность '{intensity_str}' не число. Пропуск.")
+                        continue
+                    new_intensity = int(intensity_str)
+                    
+                    # Поиск существующей команды с тем же именем
+                    found_index = None
+                    for i, cmd in enumerate(commands):
+                        existing_name, sep, existing_intensity = cmd.partition(':')
+                        if existing_name == command_name:
+                            found_index = i
+                            break
+                    
+                    if found_index is not None:
+                        # Обновляем интенсивность
+                        existing_intensity = int(existing_intensity) if existing_intensity.isdigit() else 0
+                        updated_intensity = max(existing_intensity, new_intensity)
+                        commands[found_index] = f"{command_name}:{updated_intensity}"
+                    else:
+                        commands.append(f"{command_name}:{new_intensity}")
+            
+            return (custom_delay, commands)
         except Exception as e:
             self.print_with_time(f"Ошибка проверки правил: {e}")
-            return []
+            return (SEND_STATE_DELAY, [])
 
     def handle_connection(self, conn: socket.socket, addr: tuple) -> None:
         """
