@@ -8,6 +8,7 @@ from flask import (
     session,
     jsonify,
     flash,
+    make_response,
 )
 import json
 import socket
@@ -200,12 +201,18 @@ def dashboard():
 
             sectors.append(sector)
 
-        return render_template(
-            "dashboard.html",
-            sectors=sectors,
-            devices_total=devices_total,
-            active_rules=active_rules,
+        response = make_response(
+            render_template(
+                "dashboard.html",
+                sectors=sectors,
+                devices_total=devices_total,
+                active_rules=active_rules,
+            )
         )
+        response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+        response.headers["Pragma"] = "no-cache"
+        response.headers["Expires"] = "0"
+        return response
 
     except Exception as e:
         return f"Ошибка базы данных: {str(e)}", 500
@@ -434,7 +441,15 @@ def manage_devices():
         for row in db.cursor.fetchall()
     ]
 
-    return render_template("devices.html", devices=devices, sectors=sectors)
+    response = make_response(
+        render_template(
+            "devices.html",
+            devices=devices,
+            sectors=sectors,
+        )
+    )
+    response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+    return response
 
 
 @app.route("/devices/delete/<int:device_id>", methods=["POST"])

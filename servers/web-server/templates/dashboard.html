@@ -64,4 +64,23 @@
         {% endif %}
     </section>
 </div>
+<script>
+    function updateDashboard() {
+        fetch(window.location.href)
+            .then(response => response.text())
+            .then(html => {
+                const parser = new DOMParser();
+                const newDoc = parser.parseFromString(html, 'text/html');
+                
+                document.querySelector('.stats').outerHTML = 
+                    newDoc.querySelector('.stats').outerHTML;
+                
+                document.querySelector('.sectors-grid').innerHTML = 
+                    newDoc.querySelector('.sectors-grid').innerHTML;
+            })
+            .catch(error => console.error('Ошибка обновления:', error));
+    }
+    
+    setInterval(updateDashboard, 1000);
+</script>
 {% endblock %}
